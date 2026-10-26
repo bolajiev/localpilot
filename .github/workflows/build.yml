@@ -38,3 +38,31 @@ jobs:
           name: localpilot-vsix
           path: localpilot-*.vsix
           if-no-files-found: error
+
+  windows-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bundle Node.js for Windows
+        run: bash scripts/prepare-bundled-node.sh
+
+      - name: Package self-contained Windows VSIX
+        run: npm run package:win32
+
+      - name: Upload Windows VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: localpilot-win32-x64
+          path: localpilot-0.4.0-win32-x64.vsix
+          if-no-files-found: error

@@ -5,7 +5,7 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
 ## Pre-demo checklist (online)
 
 1. Windows target is booted and `vulkaninfo --summary` reports Vulkan 1.4+.
-2. `node --version` is 22.21+ (22.x) or 24.9+.
+2. The Windows `win32-x64` VSIX includes Node.js 24.21.0; no separate Node install is needed.
 3. LocalPilot VSIX is installed and the Activity Bar icon is visible.
 4. Run **Set Up LocalPilot** once; let it install QVAC (about 3 GB) and the model.
 5. Model cache is primed:

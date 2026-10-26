@@ -21,11 +21,11 @@ Do not assume that the absence of an NVIDIA GPU means Vulkan is unavailable. QVA
 
 ## "QVAC CLI was not found" / automatic setup
 
-LocalPilot no longer requires a manual global QVAC install. Click the LocalPilot Activity Bar icon and run **Set Up LocalPilot**, or **LocalPilot: Set Up LocalPilot (QVAC + Model)** from the Command Palette. It installs QVAC privately under VS Code global storage (`...\User\globalStorage\localpilot.localpilot\qvac-runtime`) and then downloads the model.
+LocalPilot no longer requires a manual global QVAC install. The Windows VSIX also bundles Node.js/npm. Click the LocalPilot Activity Bar icon and run **Set Up LocalPilot**, or **LocalPilot: Set Up LocalPilot (QVAC + Model)** from the Command Palette. It installs QVAC privately under VS Code global storage (`...\User\globalStorage\localpilot.localpilot\qvac-runtime`) and then downloads the model.
 
 The automatic install:
 
-- Requires Node.js 22.21+ (22.x) or 24.9+, which includes npm.
+- On Windows, the `win32-x64` VSIX bundles Node.js 24.21.0/npm, so no separate Node install is needed. Generic/source builds require Node.js 22.21+ or 24.9+.
 - Downloads about **3 GB** and needs internet.
 - Does not require administrator rights.
 - Does not replace or delete a global QVAC install. If a supported global CLI exists, LocalPilot uses it instead.
@@ -53,7 +53,7 @@ QVAC CLI 0.16.0 declares:
 ^22.21.0 || >=24.9.0
 ```
 
-Node 23 is not in the supported range. Install Node 22.21+ (22.x) or 24.9+, or set `localpilot.nodePath` to a supported `node.exe`. Reopen VS Code after changing PATH.
+The Windows `win32-x64` VSIX ships a supported Node 24.21.0, so this normally does not apply there. For generic/source builds, install Node 22.21+ (22.x) or 24.9+, or set `localpilot.nodePath` to a supported `node.exe`. Reopen VS Code after changing PATH.
 
 ## Vulkan/runtime error
 

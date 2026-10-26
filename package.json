@@ -2,7 +2,7 @@
   "name": "localpilot",
   "displayName": "LocalPilot",
   "description": "Private, CPU-first local AI coding assistant for VS Code powered by QVAC.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "localpilot",
   "license": "MIT",
   "engines": {
@@ -100,7 +100,7 @@
         "localpilot.nodePath": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Optional path to a Node.js 22.21+ or 24.9+ executable used to run the QVAC CLI. Leave empty to resolve `node` from PATH."
+          "markdownDescription": "Optional path to a Node.js 22.21+ or 24.9+ executable used to run the QVAC CLI. Leave empty to use the Node bundled in the Windows all-in-one VSIX, then PATH. The Windows `win32-x64` package includes Node."
         },
         "localpilot.host": {
           "type": "string",
@@ -193,7 +193,7 @@
         "localpilot.autoInstallQvac": {
           "type": "boolean",
           "default": true,
-          "description": "If the QVAC CLI is missing, offer to install it automatically into VS Code storage. The download is about 3 GB and requires Node.js and internet. This never replaces an existing global QVAC install."
+          "description": "If the QVAC CLI is missing, offer to install it automatically into VS Code storage. The download is about 3 GB and requires internet. On Windows, Node/npm are bundled in the win32-x64 VSIX."
         }
       }
     },
@@ -228,7 +228,8 @@
     "smoke:chat": "node scripts/chat-smoke.js",
     "smoke:explain": "node scripts/explain-smoke.js",
     "check:webview": "node scripts/check-webview.js",
-    "test:integration": "npm run compile && node out/test/integration/runTest.js"
+    "test:integration": "npm run compile && node out/test/integration/runTest.js",
+    "package:win32": "vsce package --no-dependencies --ignoreFile .vscodeignore.win32 --target win32-x64 -o localpilot-0.4.0-win32-x64.vsix"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

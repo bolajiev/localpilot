@@ -29,6 +29,7 @@ export interface LocatorOptions {
   qvacPath?: string;
   nodePath?: string;
   extraCandidates?: string[];
+  bundledNodePath?: string;
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
   homeDir?: string;
@@ -287,6 +288,7 @@ async function runVersion(
 }
 
 export async function locateQvacRuntime(options: LocatorOptions = {}): Promise<RuntimeLocation> {
+  // `bundledNodePath` lets a platform-specific VSIX run QVAC without a system Node install.
   const platform = options.platform ?? process.platform;
   const env = options.env ?? process.env;
   const homeDir = options.homeDir ?? os.homedir();
@@ -383,6 +385,11 @@ export async function locateQvacRuntime(options: LocatorOptions = {}): Promise<R
       });
     }
     nodeCommand = configuredNode;
+  } else if (
+    options.bundledNodePath &&
+    (await fileExists(options.bundledNodePath, fsDeps.stat))
+  ) {
+    nodeCommand = options.bundledNodePath;
   } else {
     const nodeCandidates = sortCandidates(
       await whichAll("node", platform, execFileFn),

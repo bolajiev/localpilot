@@ -5,3 +5,4 @@ out/
 npm-debug.log*
 .tmp/
 .vscode-test/
+resources/node/

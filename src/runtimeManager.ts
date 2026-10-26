@@ -274,6 +274,12 @@ export class RuntimeManager implements vscode.Disposable {
     return path.join(this.context.globalStorageUri.fsPath, "qvac.config.json");
   }
 
+  public get bundledNodePath(): string {
+    return process.platform === "win32"
+      ? path.join(this.context.extensionUri.fsPath, "resources", "node", "node.exe")
+      : path.join(this.context.extensionUri.fsPath, "resources", "node", "bin", "node");
+  }
+
   public get managedRuntimeDir(): string {
     return path.join(this.context.globalStorageUri.fsPath, "qvac-runtime");
   }
@@ -520,7 +526,8 @@ export class RuntimeManager implements vscode.Disposable {
     const runtime = await locateQvacRuntime({
       qvacPath: settings.qvacPath,
       nodePath: settings.nodePath,
-      extraCandidates: [this.managedRuntimeEntry]
+      extraCandidates: [this.managedRuntimeEntry],
+      bundledNodePath: this.bundledNodePath
     });
     this.log(
       `Runtime located: qvac=${runtime.cliVersion} cli=${runtime.cliPath} node=${runtime.nodeVersion ?? "n/a"} viaNode=${runtime.viaNode}`
@@ -960,7 +967,8 @@ export class RuntimeManager implements vscode.Disposable {
       cli = await locateQvacRuntime({
         qvacPath: settings.qvacPath,
         nodePath: settings.nodePath,
-        extraCandidates: [this.managedRuntimeEntry]
+        extraCandidates: [this.managedRuntimeEntry],
+        bundledNodePath: this.bundledNodePath
       });
       warnings.push(...cli.warnings);
       try {

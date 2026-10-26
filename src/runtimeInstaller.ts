@@ -34,6 +34,7 @@ const defaultExec: ExecFn = (file, args, options) =>
 export interface ManagedQvacInstallOptions {
   targetDir: string;
   nodePath?: string;
+  bundledNodePath?: string;
   signal?: AbortSignal;
   onMessage?: (message: string) => void;
 }
@@ -114,7 +115,10 @@ function nodePreference(file: string): number {
   return path.extname(file).toLowerCase() === ".exe" ? 0 : 1;
 }
 
-async function findNode(nodePath?: string): Promise<{ command: string; version: string }> {
+async function findNode(
+  nodePath?: string,
+  bundledNodePath?: string
+): Promise<{ command: string; version: string }> {
   if (nodePath?.trim()) {
     const command = nodePath.trim();
     if (!(await exists(command))) {
@@ -129,6 +133,18 @@ async function findNode(nodePath?: string): Promise<{ command: string; version: 
       });
     }
     return { command, version };
+  }
+
+  if (bundledNodePath && (await exists(bundledNodePath))) {
+    const version = await nodeVersion(bundledNodePath);
+    if (!isSupportedNodeVersion(version)) {
+      throw new LocalPilotError(
+        "runtime-missing",
+        `The bundled Node.js ${version} is not supported by QVAC.`,
+        { hint: "Use a LocalPilot build with Node.js 22.21+ (22.x) or 24.9+." }
+      );
+    }
+    return { command: bundledNodePath, version };
   }
 
   const candidates = (await whichAll("node")).sort((left, right) => nodePreference(left) - nodePreference(right));
@@ -155,9 +171,10 @@ async function findNode(nodePath?: string): Promise<{ command: string; version: 
 }
 
 export async function checkNodeRuntime(
-  nodePath?: string
+  nodePath?: string,
+  bundledNodePath?: string
 ): Promise<{ command: string; version: string }> {
-  return findNode(nodePath);
+  return findNode(nodePath, bundledNodePath);
 }
 
 async function nodeVersion(command: string): Promise<string> {
@@ -314,7 +331,7 @@ export async function installManagedQvac(
     throw new LocalPilotError("cancelled", "QVAC installation was cancelled.");
   }
 
-  const node = await findNode(options.nodePath);
+  const node = await findNode(options.nodePath, options.bundledNodePath);
   const entry = managedCliEntry(options.targetDir);
   if (await exists(entry)) {
     return { entry, nodeCommand: node.command, nodeVersion: node.version };

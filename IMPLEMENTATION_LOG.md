@@ -183,6 +183,18 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.4.0 self-contained Windows package (2026-10-26)
+
+- Added a Windows self-contained VSIX that bundles **Node.js 24.21.0** (official win-x64) and **npm 11.19.0** under `resources/node/`.
+- Added bundled-Node selection to the runtime locator and installer. Precedence: explicit `localpilot.nodePath` → bundled Node → PATH.
+- Added `scripts/prepare-bundled-node.sh` (downloads official Node win-x64 zip, keeps `node.exe`, npm, and the Node license) and a GitHub Actions `windows-bundle` job.
+- The Windows VSIX is about 38.5 MB compressed / 108 MB extracted for Node, versus 74 KB for the generic package. No Node installation is needed on Windows.
+- QVAC itself is still installed automatically on first setup because it is ~3.3 GB of platform-specific native code; embedding it would make an enormous platform-specific VSIX. The model is downloaded once.
+- Verified bundled-node selection with `PATH` containing no Node: `checkNodeRuntime(undefined, bundledNode)` and `locateQvacRuntime({ bundledNodePath, extraCandidates })` both used the bundled executable and reported QVAC CLI 0.16.0 / Node 24.21.0.
+- Earlier real 3.3 GB QVAC installer test remains valid.
+- Typecheck, 43 unit tests, and webview check pass. The last full VS Code Extension Host integration run was on 0.3.0; 0.4.0 changes are runtime-locator/packaging changes and are covered by unit/type checks plus bundled-node locator tests.
+- **Windows execution of the self-contained package is NOT TESTED** because no Windows host is available. The Windows VSIX is built and its contents/manifest are verified, but QVAC/Vulkan must be exercised on the target PC.
+
 ## 0.3.0 sidebar and one-click setup (2026-10-26)
 
 - Added a **LocalPilot Activity Bar sidebar** (`viewsContainers.activitybar` + `localpilot.chatView`) backed by `WebviewViewProvider`. Chat, setup, model selection, stop, check, and settings are available there.
@@ -248,9 +260,9 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - Repository: https://github.com/bolajiev/localpilot (public)
 - GitHub Actions workflow: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
-- The `0.2.0` release introduced local GGUF support. The `0.3.0` release adds the Activity Bar sidebar and one-click QVAC/model setup.
-- The release asset is the tested `localpilot-0.3.0.vsix`; its checksum is in the final delivery report.
-- Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX itself is a release asset, not committed source.
+- The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and one-click QVAC/model setup. The `0.4.0` release adds the self-contained Windows VSIX with bundled Node/npm.
+- Release assets: `localpilot-0.4.0-win32-x64.vsix` (recommended on Windows; Node bundled) and `localpilot-0.4.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
 
@@ -258,15 +270,17 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 2. **Test the model chooser and a Windows local GGUF path** on that PC.
 3. **Record the required offline demo video** on the target device with networking visibly disabled and a fresh runtime start.
 4. **Measure Windows latency/RSS** and replace the Linux-only numbers in the submission.
-5. Push the repository and add the link plus demo video to the DoraHacks Build before 2026-10-30 14:00 UTC.
+5. Upload the demo video and add the repository/release links to the DoraHacks Build before 2026-10-30 14:00 UTC.
 
 ## Submission checklist
 
 - [x] Current official hackathon rules checked (2026-10-26)
 - [x] Clean dependency install and TypeScript compile pass
 - [x] Unit tests pass (43/43)
-- [x] Activity Bar sidebar view verified in extension host
+- [x] Activity Bar sidebar view verified in extension host (0.3.0)
 - [x] Private QVAC auto-install module verified with a real 3.3 GB install
+- [x] Windows self-contained VSIX built with bundled Node/npm
+- [x] Bundled Node selection verified with PATH excluding Node
 - [x] Extension Host smoke test pass (Linux)
 - [x] Real QVAC inference pass (Linux CPU)
 - [x] Existing local GGUF model load + real inference pass (Linux)
@@ -277,11 +291,11 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Core offline inference pass (Linux, isolated network namespace)
 - [ ] Windows Vulkan 1.4 / clean install / inference / offline: NOT TESTED
 - [ ] VS Code UI offline restart: NOT TESTED
-- [x] VSIX generated: `localpilot-0.3.0.vsix` (supersedes 0.2.0/0.1.0)
-- [x] VSIX install verified for the final package
+- [x] Generic VSIX and Windows self-contained VSIX generated
+- [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release asset published for download (0.3.0)
+- [x] GitHub Release assets published for download (0.4.0; Windows self-contained + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

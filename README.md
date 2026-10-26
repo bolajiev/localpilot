@@ -13,6 +13,7 @@ The complete extension was built, packaged, and exercised against a **real QVAC 
 - Real QVAC CLI `0.16.0` with bundled SDK `0.22.0`, Node.js `24.21.0`, VS Code `1.143.1` test host, Linux x64, CPU backend (no Vulkan ICD).
 - Activity Bar sidebar, managed start, runtime check, streaming chat, Explain Selected Code, managed stop, and loading an existing local GGUF passed in a VS Code Extension Host integration test.
 - The private QVAC installer was verified with a real 3.3 GB install and managed-runtime resolution; its interactive confirmation prompt is not automated.
+- The Windows `win32-x64` VSIX was built with official Node.js 24.21.0 + npm bundled; bundled-node selection was verified with a PATH containing no Node. Windows execution itself is still NOT TESTED.
 - Chat and code explanation passed again with external networking disabled in an isolated Linux network namespace.
 - **Windows-specific execution and the Windows Vulkan 1.4 gate were not tested here.** The repository was developed in a Linux environment, not on the target Windows PC. Run the verification steps below on the target machine before claiming Windows support.
 
@@ -39,7 +40,8 @@ After installation, LocalPilot appears as a robot icon in the Activity Bar. Clic
 
 - Windows 10/11 x64.
 - **Vulkan 1.4 or newer**, including CPU-only inference. Update the AMD/Intel/NVIDIA GPU driver. Verify with the Vulkan SDK's `vulkaninfo --summary`. A machine with no Vulkan 1.4-capable driver does not satisfy QVAC's published Windows requirement.
-- Node.js `22.21+` on the 22.x line, or `24.9+`. QVAC's CLI declares these ranges. Node includes npm; LocalPilot uses it for the automatic QVAC install.
+- **Windows all-in-one VSIX:** no separate Node.js install. The `win32-x64` VSIX bundles Node.js `24.21.0` and npm.
+- Generic/source builds still require Node.js `22.21+` (22.x) or `24.9+`.
 - VS Code `1.95+`.
 - 16 GB RAM recommended. The tested model file is 382 MB, but the QVAC worker used about **1.5 GB RSS** during inference; Windows, VS Code, and the KV cache need memory too.
 - Internet for the first setup only. LocalPilot downloads the QVAC runtime (about 3 GB) and then the model (about 382 MB by default). Later starts can use the cache offline.
@@ -51,22 +53,18 @@ Ubuntu 24.04.5 x64, 6 vCPU AMD EPYC, 11.68 GB RAM, no Vulkan ICD (Linux CPU fall
 
 ## Windows setup
 
-### 1. Install Node.js
+### 1. Node.js
+
+For the **Windows all-in-one VSIX**, do nothing: Node.js `24.21.0` and npm are bundled.
+
+If you build from source or use the generic/Linux VSIX, install Node.js 22.21+ (22.x) or 24.9+ and verify:
 
 ```powershell
 node --version
 npm --version
 ```
 
-Node.js 22.21+ (22.x) or 24.9+ is required. QVAC CLI does **not** need a manual global install: LocalPilot installs it privately under VS Code global storage on first **Set Up LocalPilot** or **Start**.
-
-Advanced/offline users can preinstall the tested CLI manually:
-
-```powershell
-npm install -g @qvac/cli@0.16.0
-qvac --version
-qvac doctor
-```
+QVAC CLI does **not** need a manual global install in either case. LocalPilot installs it privately under VS Code global storage on first **Set Up LocalPilot** or **Start**.
 
 ### 2. Verify Vulkan
 
@@ -82,7 +80,7 @@ Require a Vulkan API version of 1.4 or newer. If only an older version is availa
 
 **Download the prebuilt VSIX (recommended):**
 
-Download the latest `localpilot-0.3.0.vsix` from:
+Download the latest Windows self-contained `localpilot-0.4.0-win32-x64.vsix` from:
 
 ```text
 https://github.com/bolajiev/localpilot/releases/latest
@@ -91,10 +89,12 @@ https://github.com/bolajiev/localpilot/releases/latest
 Then install it:
 
 ```powershell
-code --install-extension .\localpilot-0.3.0.vsix
+code --install-extension .\localpilot-0.4.0-win32-x64.vsix
 ```
 
 Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
+
+The `win32-x64` asset is the recommended Windows package. The generic `localpilot-0.4.0.vsix` is for development/other platforms and requires a system Node.js.
 
 **Build from source instead:**
 
@@ -102,7 +102,7 @@ Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
 npm ci
 npm run check
 npm run package
-code --install-extension .\localpilot-0.3.0.vsix
+code --install-extension .\localpilot-0.4.0.vsix
 ```
 
 For development, open the folder in VS Code and press **F5** to launch the Extension Development Host. The `preLaunchTask` compiles TypeScript.
@@ -121,7 +121,9 @@ The initial response can be slow on CPU. The default context is 4096 tokens and 
 
 ### Why isn't everything inside the VSIX?
 
-The QVAC runtime is roughly **3.3 GB installed** and contains platform-specific native binaries. Bundling it plus a model into every VSIX would create a very large, platform-specific package and still would not remove the Node/Vulkan system requirements. LocalPilot instead downloads the tested QVAC CLI once into VS Code storage, then downloads the model once. After that, the core workflow is offline-capable. Node.js and a Vulkan 1.4-capable driver are operating-system prerequisites that an extension cannot safely install for you.
+The Windows VSIX **does bundle Node.js and npm**, so there is no separate Node install. The QVAC runtime is roughly **3.3 GB installed** and contains platform-specific native binaries, so LocalPilot downloads it once into VS Code storage during **Set Up LocalPilot**, then downloads the model once. After that, the core workflow is offline-capable.
+
+The only remaining system prerequisite is a **Vulkan 1.4-capable GPU driver**. That is an operating-system driver, like the graphics driver other local-AI desktop apps require; an extension cannot safely install it.
 
 ## Offline use
 
@@ -207,7 +209,7 @@ The 0.6B model is intentionally small for CPU-first execution. It is useful for 
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `localpilot.qvacPath` | empty | Optional path to `qvac.cmd`, the QVAC executable, or `dist/index.js`. Empty resolves `qvac` from PATH. |
-| `localpilot.nodePath` | empty | Optional Node.js 22.21+/24.9+ executable. Empty resolves `node` from PATH. |
+| `localpilot.nodePath` | empty | Optional Node.js 22.21+/24.9+ executable. Empty uses the bundled Node in the Windows all-in-one VSIX, then PATH. |
 | `localpilot.host` | `127.0.0.1` | Loopback host only. |
 | `localpilot.port` | `11434` | Local QVAC port. Restart the runtime after changing it. |
 | `localpilot.modelId` | `QWEN3_600M_INST_Q4` | QVAC catalog constant used when `modelPath` is empty. |
@@ -295,7 +297,7 @@ See [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for detailed Windows gu
 | Symptom | Action |
 | --- | --- |
 | QVAC CLI was not found | Use **Set Up LocalPilot** to install it privately, or manually install `npm install -g @qvac/cli@0.16.0` and reopen VS Code. |
-| Unsupported Node.js | Install Node 22.21+ or 24.9+, set `localpilot.nodePath`, reopen VS Code. Node/npm are required for the automatic QVAC install. |
+| Unsupported Node.js | The Windows all-in-one VSIX bundles Node 24.21.0. For generic/source builds, install Node 22.21+ or 24.9+, or set `localpilot.nodePath`. |
 | Vulkan/runtime failure | Update the GPU driver; `vulkaninfo --summary` must report Vulkan 1.4+. Required even for CPU. |
 | Port already in use | Stop the other service or change `localpilot.port`. LocalPilot will not kill an unknown server. |
 | First setup fails while offline | QVAC and the model are not cached. Connect once, complete **Set Up LocalPilot**, then retest offline. |
@@ -320,8 +322,9 @@ Recommended track: **Offline AI apps**.
 - Windows execution is unverified in this repository. The Vulkan 1.4 gate is the highest-risk Windows blocker.
 - CPU latency is high in the shared CI environment; measure the target PC.
 - One active model and alias. The model chooser rewrites the config and restarts the runtime; there is no multi-model routing, RAG, embeddings, agent loop, or automatic file edit.
-- The first setup is not fully offline: it downloads the QVAC runtime (~3 GB) and then the model. Node.js and Vulkan 1.4 remain system prerequisites and are not bundled.
+- The first setup is not fully offline: it downloads the QVAC runtime (~3 GB) and then the model. Node.js is bundled in the Windows VSIX; Vulkan 1.4 remains a system driver prerequisite.
 - The automatic installer is tested as a real 3.3 GB npm install and through managed-runtime resolution, but its interactive modal prompt is not automated in CI.
+- The Windows self-contained VSIX contains Node/npm but could not be executed on Windows in this environment. Package contents and bundled-runtime selection were verified on Linux; Windows runtime validation remains pending.
 - The model chooser is a curated shortlist, not a live model marketplace. Local GGUF loading bypasses QVAC checksum validation.
 - Reasoning is disabled by default; enabling it can consume the entire output budget.
 - The chat send path and Explain command are automated through the VS Code extension host; the raw webview button-click event itself is not simulated.

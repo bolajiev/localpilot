@@ -599,7 +599,8 @@ async function ensureQvacInstalled(
     locateQvacRuntime({
       qvacPath: settings.qvacPath,
       nodePath: settings.nodePath,
-      extraCandidates: [runtime().managedRuntimeEntry]
+      extraCandidates: [runtime().managedRuntimeEntry],
+      bundledNodePath: runtime().bundledNodePath
     });
 
   let initialError: LocalPilotError;
@@ -620,7 +621,7 @@ async function ensureQvacInstalled(
   }
 
   try {
-    await checkNodeRuntime(settings.nodePath);
+    await checkNodeRuntime(settings.nodePath, runtime().bundledNodePath);
   } catch (error) {
     const friendly = toFriendlyError(error);
     await promptForNodeDownload(friendly.message, friendly.hint);
@@ -651,6 +652,7 @@ async function ensureQvacInstalled(
           await installManagedQvac({
             targetDir: runtime().managedRuntimeDir,
             nodePath: settings.nodePath,
+            bundledNodePath: runtime().bundledNodePath,
             signal: controller.signal,
             onMessage: (message: string) => progress.report({ message })
           });

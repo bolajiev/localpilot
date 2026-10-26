@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 - 2026-10-26
+
+- Added a Windows self-contained VSIX that bundles Node.js 24.21.0 and npm 11.19.0.
+- The extension now prefers the bundled Node runtime on Windows, with system Node/`localpilot.nodePath` still supported as fallbacks.
+- QVAC/model setup remains one-click; no global npm install or separate Node install is needed for the Windows package.
+- Added a reproducible `scripts/prepare-bundled-node.sh` and CI packaging for the Windows VSIX.
+- Kept the generic VSIX for source/Linux use (requires system Node).
+
 ## 0.3.0 - 2026-10-26
 
 - Added a LocalPilot Activity Bar sidebar webview for chat, setup, model selection, and runtime actions.
