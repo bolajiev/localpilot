@@ -69,7 +69,8 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Windows 10/11 + Vulkan 1.4 | NOT TESTED | No Windows host available in this environment |
 | Windows VSIX install/smoke test | NOT TESTED | VSIX built on Linux; cross-platform package not run on Windows |
 | Demo video with network off | NOT DONE | Must be recorded by the submitter on the target device |
-| Repository link | PREPARED | Push to https://github.com/bolajiev/localpilot, then add the link to the Build |
+| Repository link | PASS | https://github.com/bolajiev/localpilot |
+| GitHub Actions CI | PASS | Build/test/package workflow succeeded; VSIX artifact uploaded |
 | Clean install/typecheck/unit tests | PASS | 43 unit tests, TypeScript, VSIX |
 | Extension Host integration | PASS (Linux) | Start, check, chat, explain command, stop, error paths |
 
@@ -81,8 +82,8 @@ Do not upgrade "PASS (Linux)" to "tested on Windows" without running the Windows
 
 ## Submission checklist
 
-- [ ] Create/push the repository with source, README, tests, and this documentation.
-- [ ] Include the tested VSIX or build instructions.
+- [x] Create/push the repository with source, README, tests, and this documentation.
+- [x] Include the tested VSIX or build instructions.
 - [ ] Record a new demo video that visibly disables networking before the offline start and shows new chat and explanation output.
 - [ ] State the exact Windows device, Vulkan version, CPU/RAM, and measured timings, or clearly mark them unavailable.
 - [ ] Include QVAC CLI/SDK and model versions and license.

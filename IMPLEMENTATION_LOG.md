@@ -216,6 +216,14 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - **Privacy**: loopback-only endpoint guard; no telemetry; prompt/code/output never logged; sanitizer drops sensitive runtime log fields.
 - **Model choice**: 0.6B Q4 for CPU-first fit. Reasoning is disabled by default because it consumes the output budget and is very slow on CPU.
 
+## GitHub publication and release
+
+- Repository: https://github.com/bolajiev/localpilot (public)
+- Initial GitHub Actions run `40319070398`: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload) in 19 s.
+- Release download: https://github.com/bolajiev/localpilot/releases/latest
+- The release asset is the tested `localpilot-0.2.0.vsix`; its checksum is in the final delivery report.
+- Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX itself is a release asset, not committed source.
+
 ## Remaining blockers and next tasks
 
 1. **Windows/Vulkan gate**: run on the actual Windows PC, verify Vulkan 1.4+, install/test the VSIX, and repeat chat/explain/offline there.
@@ -241,7 +249,10 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [ ] VS Code UI offline restart: NOT TESTED
 - [x] VSIX generated: `localpilot-0.2.0.vsix` (supersedes 0.1.0)
 - [x] VSIX install verified for the final package
+- [x] GitHub repository pushed and public
+- [x] GitHub Actions build/test/package workflow passed
+- [x] GitHub Release asset published for download
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded
-- [ ] Repository pushed and submission links verified
+- [x] Repository pushed and release link verified
