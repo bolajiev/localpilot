@@ -1,0 +1,217 @@
+{
+  "name": "localpilot",
+  "displayName": "LocalPilot",
+  "description": "Private, CPU-first local AI coding assistant for VS Code powered by QVAC.",
+  "version": "0.2.0",
+  "publisher": "localpilot",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "qvac",
+    "local-ai",
+    "offline",
+    "privacy",
+    "assistant"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "localpilot.checkRuntime",
+        "title": "Check Runtime",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.startRuntime",
+        "title": "Start / Load Local Model",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.selectModel",
+        "title": "Choose Model or Local GGUF",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.chat",
+        "title": "Chat with Local Model",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.explainSelection",
+        "title": "Explain Selected Code",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.stopRuntime",
+        "title": "Stop Runtime",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.showLogs",
+        "title": "Show Diagnostics Log",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.statusMenu",
+        "title": "Status Menu",
+        "category": "LocalPilot"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "localpilot.statusMenu",
+          "when": "false"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "localpilot.explainSelection",
+          "when": "editorHasSelection",
+          "group": "localpilot@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "LocalPilot",
+      "properties": {
+        "localpilot.qvacPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional path to the QVAC CLI executable or JavaScript entry point. Leave empty to resolve `qvac` from PATH. On Windows this is commonly `%APPDATA%\\npm\\qvac.cmd`."
+        },
+        "localpilot.nodePath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional path to a Node.js 22.21+ or 24.9+ executable used to run the QVAC CLI. Leave empty to resolve `node` from PATH."
+        },
+        "localpilot.host": {
+          "type": "string",
+          "enum": [
+            "127.0.0.1",
+            "localhost",
+            "::1"
+          ],
+          "default": "127.0.0.1",
+          "description": "Loopback address used by the local QVAC server. Non-loopback addresses are rejected."
+        },
+        "localpilot.port": {
+          "type": "number",
+          "default": 11434,
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "Local port for the QVAC OpenAI-compatible server. Restart the runtime after changing it."
+        },
+        "localpilot.modelId": {
+          "type": "string",
+          "default": "QWEN3_600M_INST_Q4",
+          "description": "QVAC catalog model constant. LocalPilot is tested with QWEN3_600M_INST_Q4."
+        },
+        "localpilot.modelPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional absolute path to a local llama.cpp-compatible `.gguf` chat model. When set, LocalPilot uses QVAC's explicit `{ src, type: \"llamacpp-completion\" }` config instead of downloading a catalog model. Use **LocalPilot: Choose Model or Local GGUF** to pick a file. Local files are not checksum-verified by QVAC."
+        },
+        "localpilot.modelAlias": {
+          "type": "string",
+          "default": "localpilot-model",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "description": "Alias used by the local OpenAI-compatible API for the configured model."
+        },
+        "localpilot.contextSize": {
+          "type": "number",
+          "default": 4096,
+          "minimum": 512,
+          "maximum": 32768,
+          "description": "Context window in tokens (input plus generated output) for the model."
+        },
+        "localpilot.maxOutputTokens": {
+          "type": "number",
+          "default": 384,
+          "minimum": 16,
+          "maximum": 4096,
+          "description": "Maximum number of generated tokens per response."
+        },
+        "localpilot.temperature": {
+          "type": "number",
+          "default": 0.2,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature. Lower values are more deterministic."
+        },
+        "localpilot.enableReasoning": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable hybrid-model reasoning/thinking output. Disabled by default because it is much slower on CPU."
+        },
+        "localpilot.maxSelectionChars": {
+          "type": "number",
+          "default": 6000,
+          "minimum": 500,
+          "maximum": 40000,
+          "description": "Maximum number of selected characters sent by Explain Selected Code. Larger selections are rejected instead of silently sending the whole file."
+        },
+        "localpilot.startupTimeoutMs": {
+          "type": "number",
+          "default": 1800000,
+          "minimum": 30000,
+          "description": "Time allowed for the QVAC server to start and preload the model, including the first model download."
+        },
+        "localpilot.requestTimeoutMs": {
+          "type": "number",
+          "default": 900000,
+          "minimum": 5000,
+          "description": "Time allowed for one model response before the request is aborted."
+        },
+        "localpilot.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start the QVAC runtime automatically when Chat or Explain is used. When false, LocalPilot asks first because the initial model download requires internet."
+        },
+        "localpilot.stopOnExit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stop the QVAC process started by LocalPilot when VS Code shuts down. Servers that LocalPilot did not start are never killed."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "typecheck": "tsc -p ./ --noEmit",
+    "test": "npm run compile && node --test \"out/test/*.test.js\"",
+    "check": "npm run typecheck && npm test && npm run check:webview",
+    "package": "vsce package --no-dependencies",
+    "smoke:chat": "node scripts/chat-smoke.js",
+    "smoke:explain": "node scripts/explain-smoke.js",
+    "check:webview": "node scripts/check-webview.js",
+    "test:integration": "npm run compile && node out/test/integration/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/vscode": "1.95.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.1.0",
+    "typescript": "5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bolajiev/localpilot.git"
+  },
+  "homepage": "https://github.com/bolajiev/localpilot#readme",
+  "bugs": {
+    "url": "https://github.com/bolajiev/localpilot/issues"
+  }
+}
