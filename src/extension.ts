@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
-import { ChatAction, ChatPanel, ChatStatus } from "./chatView";
+import {
+  ChatAction,
+  ChatPanel,
+  ChatStatus,
+  LocalPilotChatViewProvider
+} from "./chatView";
 import { LocalPilotError, toFriendlyError } from "./errors";
 import { ChatResult, QvacClient } from "./qvacClient";
 import {
@@ -9,6 +14,8 @@ import {
   ChatMessage,
   trimConversation
 } from "./prompts";
+import { checkNodeRuntime, installManagedQvac } from "./runtimeInstaller";
+import { locateQvacRuntime } from "./runtimeLocator";
 import {
   RuntimeCheckReport,
   RuntimeManager,
@@ -20,8 +27,7 @@ import { readSettings } from "./settings";
 let outputChannel: vscode.OutputChannel | undefined;
 let statusBar: vscode.StatusBarItem | undefined;
 let manager: RuntimeManager | undefined;
-let currentPanel: ChatPanel | undefined;
-let panelSubscription: vscode.Disposable | undefined;
+let chatProvider: LocalPilotChatViewProvider | undefined;
 let conversation: ChatMessage[] = [];
 let requestAbort: AbortController | undefined;
 let busy = false;
@@ -57,7 +63,8 @@ function runtime(): RuntimeManager {
 }
 
 function panel(): ChatPanel | undefined {
-  return currentPanel && !currentPanel.isClosed ? currentPanel : undefined;
+  const surface = chatProvider?.currentSurface;
+  return surface && !surface.isClosed ? surface : undefined;
 }
 
 function statusToChat(status: RuntimeStatus): ChatStatus {
@@ -114,17 +121,12 @@ function handleStatusChange(status: RuntimeStatus): void {
   }
 }
 
-function showPanel(preserveFocus = false): ChatPanel {
-  if (!currentPanel || currentPanel.isClosed) {
-    currentPanel = ChatPanel.show();
-    panelSubscription?.dispose();
-    panelSubscription = currentPanel.onDidReceiveMessage((action) => {
-      void handlePanelAction(action);
-    });
+async function showChatSurface(preserveFocus = false): Promise<ChatPanel> {
+  if (!chatProvider) {
+    throw new Error("LocalPilot chat view is not ready.");
   }
-  const view = currentPanel;
+  const view = await chatProvider.focus(preserveFocus);
   view.setStatus(statusToChat(runtime().getStatus()));
-  view.reveal(preserveFocus);
   return view;
 }
 
@@ -298,7 +300,7 @@ async function ensureRuntime(fromPanel: boolean): Promise<boolean> {
 }
 
 async function handleSend(rawText: string): Promise<void> {
-  const view = showPanel(false);
+  const view = await showChatSurface(false);
   if (busy) {
     view.restoreInput(rawText);
     view.addNote("LocalPilot is still working. Stop the current response or wait for it to finish.");
@@ -411,7 +413,7 @@ async function explainSelection(): Promise<void> {
   const language = editor.document.languageId || "text";
   const displayUser = `Explain selected ${language} code (${lineCount} line${lineCount === 1 ? "" : "s"}, selection only)`;
 
-  const view = showPanel(false);
+  const view = await showChatSurface(false);
   busy = true;
   view.setBusy(true, "Preparing the local runtime…", false);
   try {
@@ -572,7 +574,117 @@ async function selectModel(): Promise<void> {
   await offerRuntimeRestart();
 }
 
+async function promptForNodeDownload(message: string, hint?: string): Promise<void> {
+  const action = await vscode.window.showErrorMessage(
+    `${message} ${hint ?? ""}`.trim(),
+    "Open Node.js Download",
+    "Show Details"
+  );
+  if (action === "Open Node.js Download") {
+    await vscode.env.openExternal(vscode.Uri.parse("https://nodejs.org/en/download"));
+  } else if (action === "Show Details") {
+    outputChannel?.show(true);
+  }
+}
+
+async function ensureQvacInstalled(
+  settings: ReturnType<typeof readSettings>,
+  fromPanel: boolean
+): Promise<boolean> {
+  if (runtime().getStatus().state === "running" || runtime().getStatus().state === "external") {
+    return true;
+  }
+
+  const locate = (): Promise<unknown> =>
+    locateQvacRuntime({
+      qvacPath: settings.qvacPath,
+      nodePath: settings.nodePath,
+      extraCandidates: [runtime().managedRuntimeEntry]
+    });
+
+  let initialError: LocalPilotError;
+  try {
+    await locate();
+    return true;
+  } catch (error) {
+    initialError = toFriendlyError(error);
+  }
+
+  if (
+    settings.qvacPath ||
+    !settings.autoInstallQvac ||
+    !initialError.message.includes("QVAC CLI was not found")
+  ) {
+    reportError(initialError, fromPanel);
+    return false;
+  }
+
+  try {
+    await checkNodeRuntime(settings.nodePath);
+  } catch (error) {
+    const friendly = toFriendlyError(error);
+    await promptForNodeDownload(friendly.message, friendly.hint);
+    return false;
+  }
+
+  const choice = await vscode.window.showWarningMessage(
+    "QVAC runtime is not installed. LocalPilot can install it into VS Code storage automatically. This downloads about 3 GB and requires Node.js 22.21+ or 24.9+ and internet.",
+    { modal: true },
+    "Install QVAC",
+    "Cancel"
+  );
+  if (choice !== "Install QVAC") {
+    return false;
+  }
+
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "LocalPilot: installing QVAC runtime",
+        cancellable: true
+      },
+      async (progress, token) => {
+        const controller = new AbortController();
+        const subscription = token.onCancellationRequested(() => controller.abort());
+        try {
+          await installManagedQvac({
+            targetDir: runtime().managedRuntimeDir,
+            nodePath: settings.nodePath,
+            signal: controller.signal,
+            onMessage: (message: string) => progress.report({ message })
+          });
+        } finally {
+          subscription.dispose();
+        }
+      }
+    );
+    await locate();
+    log("Managed QVAC runtime installed into VS Code storage.");
+    return true;
+  } catch (error) {
+    const friendly = toFriendlyError(error);
+    if (friendly.code === "cancelled") {
+      if (fromPanel) {
+        panel()?.addNote("QVAC installation cancelled.");
+      } else {
+        void vscode.window.showInformationMessage("QVAC installation cancelled.");
+      }
+      return false;
+    }
+    if (/Node\.js|npm/i.test(friendly.message)) {
+      await promptForNodeDownload(friendly.message, friendly.hint);
+    } else {
+      reportError(friendly, fromPanel);
+    }
+    return false;
+  }
+}
+
 async function startRuntimeInteractive(fromPanel = false): Promise<boolean> {
+  if (!(await ensureQvacInstalled(readSettings(), fromPanel))) {
+    return false;
+  }
   try {
     await vscode.window.withProgress(
       {
@@ -627,6 +739,13 @@ async function startRuntimeInteractive(fromPanel = false): Promise<boolean> {
     }
     reportError(friendly, fromPanel);
     return false;
+  }
+}
+
+async function setupLocalPilot(): Promise<void> {
+  const ready = await startRuntimeInteractive(false);
+  if (ready) {
+    await openChat();
   }
 }
 
@@ -743,6 +862,11 @@ async function showStatusMenu(): Promise<void> {
       detail: `${status.modelAlias} · ${status.endpoint}`
     },
     {
+      label: "$(cloud-download) Set Up LocalPilot (QVAC + Model)",
+      description: "Install the QVAC runtime if missing, then download and load the model",
+      command: "localpilot.setup"
+    },
+    {
       label: "$(pulse) Check Runtime",
       description: "Inspect the QVAC CLI, doctor report, server, and model cache",
       command: "localpilot.checkRuntime"
@@ -835,7 +959,7 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
 }
 
 async function openChat(): Promise<void> {
-  showPanel(false);
+  await showChatSurface(false);
   try {
     const status = await runtime().refreshStatus();
     const view = panel();
@@ -852,6 +976,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(vscode.commands.registerCommand(command, callback));
   };
 
+  register("localpilot.setup", () => setupLocalPilot());
   register("localpilot.checkRuntime", () => checkRuntime(false));
   register("localpilot.startRuntime", () => startRuntimeInteractive(false));
   register("localpilot.selectModel", async () => {
@@ -877,7 +1002,22 @@ export function activate(context: vscode.ExtensionContext): LocalPilotApi {
   statusBar.show();
 
   manager = new RuntimeManager(context, outputChannel, readSettings);
-  context.subscriptions.push(outputChannel, statusBar, manager);
+  chatProvider = new LocalPilotChatViewProvider();
+  context.subscriptions.push(
+    outputChannel,
+    statusBar,
+    manager,
+    chatProvider,
+    vscode.window.registerWebviewViewProvider("localpilot.chatView", chatProvider, {
+      webviewOptions: { retainContextWhenHidden: true }
+    }),
+    chatProvider.onDidReceiveMessage((action) => {
+      void handlePanelAction(action);
+    }),
+    chatProvider.onDidResolveSurface((surface) => {
+      surface.setStatus(statusToChat(runtime().getStatus()));
+    })
+  );
   context.subscriptions.push(manager.onDidChangeStatus(handleStatusChange));
   registerCommands(context);
 
@@ -927,10 +1067,8 @@ export function activate(context: vscode.ExtensionContext): LocalPilotApi {
 
 export async function deactivate(): Promise<void> {
   requestAbort?.abort();
-  currentPanel?.dispose();
-  currentPanel = undefined;
-  panelSubscription?.dispose();
-  panelSubscription = undefined;
+  chatProvider?.dispose();
+  chatProvider = undefined;
   await manager?.shutdown();
   manager?.dispose();
   manager = undefined;

@@ -19,23 +19,29 @@ vulkaninfo --summary
 
 Do not assume that the absence of an NVIDIA GPU means Vulkan is unavailable. QVAC's published Windows requirement is **Vulkan 1.4 or newer**, even for CPU-only inference. Look for the reported Vulkan API version, not the GPU brand.
 
-## "QVAC CLI was not found on PATH"
+## "QVAC CLI was not found" / automatic setup
 
-1. Install the tested CLI:
-   ```powershell
-   npm install -g @qvac/cli@0.16.0
-   ```
-2. Check the shim and version:
-   ```powershell
-   where.exe qvac
-   qvac --version
-   ```
-   The expected version is `0.16.0`.
-3. If the command works in PowerShell but not in VS Code, fully quit and reopen VS Code so it inherits the refreshed PATH.
-4. If you use nvm-windows or a nonstandard npm prefix, set both:
-   - `localpilot.qvacPath` to the installed `qvac.cmd` (for example `C:\Users\<you>\AppData\Roaming\npm\qvac.cmd`), or directly to `...\node_modules\@qvac\cli\dist\index.js`.
-   - `localpilot.nodePath` to the matching `node.exe`.
-5. Run **LocalPilot: Check Runtime** again.
+LocalPilot no longer requires a manual global QVAC install. Click the LocalPilot Activity Bar icon and run **Set Up LocalPilot**, or **LocalPilot: Set Up LocalPilot (QVAC + Model)** from the Command Palette. It installs QVAC privately under VS Code global storage (`...\User\globalStorage\localpilot.localpilot\qvac-runtime`) and then downloads the model.
+
+The automatic install:
+
+- Requires Node.js 22.21+ (22.x) or 24.9+, which includes npm.
+- Downloads about **3 GB** and needs internet.
+- Does not require administrator rights.
+- Does not replace or delete a global QVAC install. If a supported global CLI exists, LocalPilot uses it instead.
+
+If the automatic install fails, the diagnostics log contains the npm error tail. Check free disk (about 4 GB+), internet, and Node/npm. Manual fallback:
+
+```powershell
+npm install -g @qvac/cli@0.16.0
+qvac --version
+qvac doctor
+```
+
+If you use nvm-windows or a nonstandard npm prefix, set both:
+
+- `localpilot.qvacPath` to `qvac.cmd` or `...\node_modules\@qvac\cli\dist\index.js`.
+- `localpilot.nodePath` to the matching `node.exe`.
 
 LocalPilot deliberately does not execute `.cmd` shims through a shell. It resolves the shim to the CLI JavaScript entry point and spawns `node.exe` with an argument array.
 
@@ -164,7 +170,7 @@ CPU inference is slow, and first-token latency includes prompt prefill.
 - Raise `localpilot.requestTimeoutMs` only if you accept the longer wait.
 - Measure on the actual machine; the CI host measured about 0.08-0.1 tokens/second and is not a Windows benchmark.
 
-Click **Stop** in the chat panel or press **LocalPilot: Stop Runtime** to cancel. Aborting the HTTP request causes QVAC to cancel the inference.
+Click **Stop** in the sidebar chat or press **LocalPilot: Stop Runtime** to cancel. Aborting the HTTP request causes QVAC to cancel the inference.
 
 ## Stopping or orphan processes
 

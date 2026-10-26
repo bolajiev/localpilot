@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 - 2026-10-26
+
+- Added a LocalPilot Activity Bar sidebar webview for chat, setup, model selection, and runtime actions.
+- Added **Set Up LocalPilot (QVAC + Model)**.
+- Added automatic QVAC CLI installation into VS Code global storage when no supported global CLI exists.
+- Added Node/npm preflight and a Node.js download action for setup errors.
+- QVAC/model downloads are cued from the extension; Node.js and Vulkan remain system prerequisites.
+
 ## 0.2.0 - 2026-10-26
 
 - Added **Choose Model or Local GGUF** with a curated Qwen3 0.6B/1.7B/4B list.

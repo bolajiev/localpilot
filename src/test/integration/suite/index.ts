@@ -69,6 +69,7 @@ export async function run(): Promise<void> {
 
   const commands = await vscode.commands.getCommands(true);
   for (const command of [
+    "localpilot.setup",
     "localpilot.checkRuntime",
     "localpilot.startRuntime",
     "localpilot.selectModel",

@@ -65,6 +65,16 @@ export class ChatPanel implements vscode.Disposable {
     this.panel.webview.html = this.html();
   }
 
+  public static fromWebviewView(view: vscode.WebviewView): ChatPanel {
+    const fakePanel = {
+      webview: view.webview,
+      onDidDispose: view.onDidDispose,
+      reveal: (_column?: vscode.ViewColumn, preserveFocus?: boolean) => view.show(preserveFocus),
+      dispose: () => undefined
+    } as unknown as vscode.WebviewPanel;
+    return new ChatPanel(fakePanel);
+  }
+
   public static show(): ChatPanel {
     if (ChatPanel.current && !ChatPanel.current.disposed) {
       ChatPanel.current.panel.reveal(undefined, false);
@@ -342,8 +352,9 @@ export class ChatPanel implements vscode.Disposable {
 <main id="messages" aria-live="polite">
   <div class="welcome" id="welcome">
     <strong>Private by default.</strong> Prompts and selected code go only to the QVAC runtime on this machine.
-    LocalPilot has no cloud fallback and sends no telemetry. The first catalog-model start may need internet;
-    later runs, and models you already have on disk, can work offline.
+    LocalPilot has no cloud fallback and sends no telemetry. If QVAC is missing, Start offers a one-click
+    local install of the runtime; the first catalog-model start also needs internet. Later runs, and models
+    you already have on disk, can work offline.
   </div>
 </main>
 <footer>
@@ -577,5 +588,86 @@ export class ChatPanel implements vscode.Disposable {
 </script>
 </body>
 </html>`;
+  }
+}
+
+export class LocalPilotChatViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
+  private view?: vscode.WebviewView;
+  private surface?: ChatPanel;
+  private readonly messageEmitter = new vscode.EventEmitter<ChatAction>();
+  private readonly resolveEmitter = new vscode.EventEmitter<ChatPanel>();
+  private readonly disposables: vscode.Disposable[] = [];
+  private waiters: Array<(surface: ChatPanel) => void> = [];
+
+  public readonly onDidReceiveMessage = this.messageEmitter.event;
+  public readonly onDidResolveSurface = this.resolveEmitter.event;
+
+  public constructor() {
+    this.disposables.push(this.messageEmitter, this.resolveEmitter);
+  }
+
+  public get currentSurface(): ChatPanel | undefined {
+    return this.surface;
+  }
+
+  public resolveWebviewView(view: vscode.WebviewView): void {
+    this.view = view;
+    this.surface?.dispose();
+    const surface = ChatPanel.fromWebviewView(view);
+    this.surface = surface;
+    this.disposables.push(
+      surface.onDidReceiveMessage((action) => this.messageEmitter.fire(action)),
+      view.onDidDispose(() => {
+        if (this.surface === surface) {
+          this.surface = undefined;
+          this.view = undefined;
+        }
+      })
+    );
+    this.resolveEmitter.fire(surface);
+    for (const waiter of this.waiters.splice(0)) {
+      waiter(surface);
+    }
+  }
+
+  public async focus(preserveFocus = false): Promise<ChatPanel> {
+    if (this.surface) {
+      this.view?.show(preserveFocus);
+      return this.surface;
+    }
+    const waitForSurface = this.waitForSurface();
+    try {
+      await vscode.commands.executeCommand("localpilot.chatView.focus");
+    } catch (error) {
+      this.waiters = [];
+      throw error;
+    }
+    return waitForSurface;
+  }
+
+  private waitForSurface(timeoutMs = 5000): Promise<ChatPanel> {
+    return new Promise<ChatPanel>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const index = this.waiters.indexOf(waiter);
+        if (index >= 0) {
+          this.waiters.splice(index, 1);
+        }
+        reject(new Error("LocalPilot sidebar view did not open in time."));
+      }, timeoutMs);
+      const waiter = (surface: ChatPanel): void => {
+        clearTimeout(timer);
+        resolve(surface);
+      };
+      this.waiters.push(waiter);
+    });
+  }
+
+  public dispose(): void {
+    this.surface?.dispose();
+    this.surface = undefined;
+    this.view = undefined;
+    for (const disposable of this.disposables) {
+      disposable.dispose();
+    }
   }
 }

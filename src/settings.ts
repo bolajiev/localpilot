@@ -19,6 +19,7 @@ export function readSettings(): LocalPilotSettings {
     startupTimeoutMs: config.get<number>("startupTimeoutMs", 1800000),
     requestTimeoutMs: config.get<number>("requestTimeoutMs", 900000),
     autoStart: config.get<boolean>("autoStart", false),
+    autoInstallQvac: config.get<boolean>("autoInstallQvac", true),
     stopOnExit: config.get<boolean>("stopOnExit", true)
   };
 }

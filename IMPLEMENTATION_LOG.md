@@ -183,6 +183,33 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.3.0 sidebar and one-click setup (2026-10-26)
+
+- Added a **LocalPilot Activity Bar sidebar** (`viewsContainers.activitybar` + `localpilot.chatView`) backed by `WebviewViewProvider`. Chat, setup, model selection, stop, check, and settings are available there.
+- Retained the existing webview HTML/streaming/cancellation behavior; the sidebar is now the primary chat surface. Added a monochrome Activity Bar icon.
+- Added **Set Up LocalPilot (QVAC + Model)**: preflights Node, installs a private QVAC CLI under VS Code global storage if no supported CLI exists, then starts QVAC and downloads the model.
+- Added `localpilot.autoInstallQvac` (default true). Automatic install never replaces a global QVAC install and never runs without a user confirmation.
+- Added Node/npm discovery, npm shim resolution, free-disk preflight, cancellable process-tree shutdown, and a Node.js download action when Node is missing.
+- Verified the installer standalone with a real 3.3 GB `@qvac/cli@0.16.0` install: completed in 180.6 s into `/tmp/localpilot-managed-qvac`.
+- Verified managed-runtime resolution with a PATH that contained Node but not QVAC; `locateQvacRuntime({ extraCandidates })` found the installed entry and reported CLI 0.16.0 / Node 24.21.0.
+- Extension-host integration with the sidebar passed: view focus, real chat through the sidebar send path, Explain Selected Code, missing-CLI/port-conflict errors, and local GGUF loading.
+
+0.3.0 integration evidence (Linux CPU, heavily loaded host; final rerun):
+
+```text
+[integration] extension activated, version=0.3.0
+[integration] managed runtime ready in 61510 ms
+[integration] real local chat passed in 127445 ms: text="LocalPilot integration OK."
+[integration] Explain Selected Code command passed in 356337 ms
+[integration] managed runtime stopped in 1886 ms
+[integration] local GGUF start+inference passed in 108330 ms
+Exit code: 0
+```
+
+Earlier 0.3.0 runs on the same host were faster (start 44.2 s, chat 94.8 s, Explain 253.2 s), confirming high run-to-run variance under shared CPU load.
+
+The interactive auto-install modal prompt itself is **not automated**; the installer and managed-runtime resolution were exercised directly. Windows/Vulkan 1.4 and Windows offline UI remain **NOT TESTED**. This 0.3.0 section supersedes the artifact in 0.2.0.
+
 ## 0.2.0 model-source enhancement (2026-10-26)
 
 - Added **Choose Model or Local GGUF** (curated Qwen3 0.6B/1.7B/4B list + file picker).
@@ -219,9 +246,10 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 ## GitHub publication and release
 
 - Repository: https://github.com/bolajiev/localpilot (public)
-- Initial GitHub Actions run `40319070398`: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload) in 19 s.
+- GitHub Actions workflow: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
-- The release asset is the tested `localpilot-0.2.0.vsix`; its checksum is in the final delivery report.
+- The `0.2.0` release introduced local GGUF support. The `0.3.0` release adds the Activity Bar sidebar and one-click QVAC/model setup.
+- The release asset is the tested `localpilot-0.3.0.vsix`; its checksum is in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX itself is a release asset, not committed source.
 
 ## Remaining blockers and next tasks
@@ -237,6 +265,8 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Current official hackathon rules checked (2026-10-26)
 - [x] Clean dependency install and TypeScript compile pass
 - [x] Unit tests pass (43/43)
+- [x] Activity Bar sidebar view verified in extension host
+- [x] Private QVAC auto-install module verified with a real 3.3 GB install
 - [x] Extension Host smoke test pass (Linux)
 - [x] Real QVAC inference pass (Linux CPU)
 - [x] Existing local GGUF model load + real inference pass (Linux)
@@ -247,11 +277,11 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Core offline inference pass (Linux, isolated network namespace)
 - [ ] Windows Vulkan 1.4 / clean install / inference / offline: NOT TESTED
 - [ ] VS Code UI offline restart: NOT TESTED
-- [x] VSIX generated: `localpilot-0.2.0.vsix` (supersedes 0.1.0)
+- [x] VSIX generated: `localpilot-0.3.0.vsix` (supersedes 0.2.0/0.1.0)
 - [x] VSIX install verified for the final package
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release asset published for download
+- [x] GitHub Release asset published for download (0.3.0)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

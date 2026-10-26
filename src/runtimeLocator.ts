@@ -28,6 +28,7 @@ type ExecFn = (
 export interface LocatorOptions {
   qvacPath?: string;
   nodePath?: string;
+  extraCandidates?: string[];
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
   homeDir?: string;
@@ -328,11 +329,6 @@ export async function locateQvacRuntime(options: LocatorOptions = {}): Promise<R
     }
   } else {
     const candidates = sortCandidates(await whichAll("qvac", platform, execFileFn), platform, false);
-    if (candidates.length === 0) {
-      throw new LocalPilotError("runtime-missing", "QVAC CLI was not found on PATH.", {
-        hint: "Install Node.js 22.21+ or 24.9+, then run: npm install -g @qvac/cli@0.16.0. Reopen VS Code afterwards so PATH refreshes."
-      });
-    }
     let lastError: unknown;
     for (const candidate of candidates) {
       try {
@@ -347,6 +343,28 @@ export async function locateQvacRuntime(options: LocatorOptions = {}): Promise<R
       }
     }
     if (!resolved) {
+      for (const extra of options.extraCandidates ?? []) {
+        if (!(await fileExists(extra, fsDeps.stat))) {
+          continue;
+        }
+        try {
+          resolved = await resolveCliCandidate(extra, platform, {
+            ...fsDeps,
+            env,
+            homeDir
+          });
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+    }
+    if (!resolved) {
+      if (candidates.length === 0) {
+        throw new LocalPilotError("runtime-missing", "QVAC CLI was not found on PATH or in VS Code storage.", {
+          hint: "Run LocalPilot: Set Up LocalPilot to install it automatically, or install manually with npm install -g @qvac/cli@0.16.0."
+        });
+      }
       throw lastError instanceof Error
         ? lastError
         : new LocalPilotError("runtime-missing", "Could not resolve a usable QVAC CLI on PATH.");

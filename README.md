@@ -1,6 +1,6 @@
 # LocalPilot
 
-LocalPilot is a Windows-first VS Code extension for private, CPU-first local AI coding help using [QVAC](https://qvac.tether.io). It starts a QVAC runtime, preloads one local model, provides a chat panel, and explains only the code you explicitly select.
+LocalPilot is a Windows-first VS Code extension for private, CPU-first local AI coding help using [QVAC](https://qvac.tether.io). It starts a QVAC runtime, preloads one local model, provides a chat view in the VS Code Activity Bar sidebar, and explains only the code you explicitly select.
 
 No cloud inference. No telemetry. No prompt or source-code logging. No automatic file edits. The runtime is bound to loopback.
 
@@ -11,7 +11,8 @@ Source and releases: **https://github.com/bolajiev/localpilot**
 The complete extension was built, packaged, and exercised against a **real QVAC model** in this repository's development environment:
 
 - Real QVAC CLI `0.16.0` with bundled SDK `0.22.0`, Node.js `24.21.0`, VS Code `1.143.1` test host, Linux x64, CPU backend (no Vulkan ICD).
-- Managed start, runtime check, streaming chat, Explain Selected Code, managed stop, and loading an existing local GGUF passed in a VS Code Extension Host integration test.
+- Activity Bar sidebar, managed start, runtime check, streaming chat, Explain Selected Code, managed stop, and loading an existing local GGUF passed in a VS Code Extension Host integration test.
+- The private QVAC installer was verified with a real 3.3 GB install and managed-runtime resolution; its interactive confirmation prompt is not automated.
 - Chat and code explanation passed again with external networking disabled in an isolated Linux network namespace.
 - **Windows-specific execution and the Windows Vulkan 1.4 gate were not tested here.** The repository was developed in a Linux environment, not on the target Windows PC. Run the verification steps below on the target machine before claiming Windows support.
 
@@ -21,15 +22,16 @@ Measured results and the full acceptance matrix are in [`IMPLEMENTATION_LOG.md`]
 
 | Command | Behavior |
 | --- | --- |
+| `LocalPilot: Set Up LocalPilot (QVAC + Model)` | One-click setup: installs a private QVAC runtime into VS Code storage if needed, writes the loopback config, downloads the model, and opens the sidebar. |
 | `LocalPilot: Check Runtime` | Locates the QVAC CLI and Node.js, runs `qvac doctor`, checks the loopback server/model alias, and reports the Qwen GGUF cache. |
-| `LocalPilot: Start / Load Local Model` | Writes a loopback-only QVAC config, starts `qvac serve --openai --no-default`, waits for the model to preload, and reports errors. The first catalog-model run downloads the model. |
+| `LocalPilot: Start / Load Local Model` | Writes a loopback-only QVAC config, starts `qvac serve --openai --no-default`, waits for the model to preload, and reports errors. The first catalog-model run downloads the model. If QVAC is missing, this offers the automatic install. |
 | `LocalPilot: Choose Model or Local GGUF` | Opens a short model list (Qwen3 0.6B/1.7B/4B) or a file picker for an existing local `.gguf` model. Downloads happen only when you start the selected catalog model. |
-| `LocalPilot: Chat with Local Model` | Opens a streaming chat panel. Prompts and responses stay in memory and on this machine. |
+| `LocalPilot: Chat with Local Model` | Focuses the LocalPilot Activity Bar sidebar and its streaming chat. Prompts and responses stay in memory and on this machine. |
 | `LocalPilot: Explain Selected Code` | Sends only the current editor selection. With no selection it shows an actionable warning and sends nothing. Oversized selections are rejected. |
 | `LocalPilot: Stop Runtime` | Unloads the model and stops the process tree **only if LocalPilot started it**. An external QVAC server is never killed; only its model may be unloaded after confirmation. |
 | `LocalPilot: Show Diagnostics Log` | Shows status metadata and sanitized QVAC runtime lines. Prompt/code fields are filtered out. |
 
-The status-bar item also opens all actions. The editor context menu includes **Explain Selected Code** when text is selected.
+After installation, LocalPilot appears as a robot icon in the Activity Bar. Click it for the chat/setup sidebar. The status-bar item also opens all actions. The editor context menu includes **Explain Selected Code** when text is selected.
 
 ## Requirements
 
@@ -37,10 +39,11 @@ The status-bar item also opens all actions. The editor context menu includes **E
 
 - Windows 10/11 x64.
 - **Vulkan 1.4 or newer**, including CPU-only inference. Update the AMD/Intel/NVIDIA GPU driver. Verify with the Vulkan SDK's `vulkaninfo --summary`. A machine with no Vulkan 1.4-capable driver does not satisfy QVAC's published Windows requirement.
-- Node.js `22.21+` on the 22.x line, or `24.9+`. QVAC's CLI declares these ranges.
+- Node.js `22.21+` on the 22.x line, or `24.9+`. QVAC's CLI declares these ranges. Node includes npm; LocalPilot uses it for the automatic QVAC install.
 - VS Code `1.95+`.
 - 16 GB RAM recommended. The tested model file is 382 MB, but the QVAC worker used about **1.5 GB RSS** during inference; Windows, VS Code, and the KV cache need memory too.
-- Internet for the first model download only. Subsequent starts can use the cache offline.
+- Internet for the first setup only. LocalPilot downloads the QVAC runtime (about 3 GB) and then the model (about 382 MB by default). Later starts can use the cache offline.
+- About 4 GB of free disk for QVAC plus the model, and extra room for VS Code and the KV cache.
 
 ### Verified development environment
 
@@ -48,21 +51,22 @@ Ubuntu 24.04.5 x64, 6 vCPU AMD EPYC, 11.68 GB RAM, no Vulkan ICD (Linux CPU fall
 
 ## Windows setup
 
-### 1. Install Node.js and QVAC
-
-In PowerShell:
+### 1. Install Node.js
 
 ```powershell
 node --version
 npm --version
+```
+
+Node.js 22.21+ (22.x) or 24.9+ is required. QVAC CLI does **not** need a manual global install: LocalPilot installs it privately under VS Code global storage on first **Set Up LocalPilot** or **Start**.
+
+Advanced/offline users can preinstall the tested CLI manually:
+
+```powershell
 npm install -g @qvac/cli@0.16.0
 qvac --version
 qvac doctor
 ```
-
-Expected: `qvac --version` prints `0.16.0`, and `qvac doctor` exits 0. On Windows, `qvac doctor` may warn that GPU acceleration is unavailable if the Vulkan driver cannot be detected. This does **not** waive the Vulkan 1.4 requirement; fix the driver before judging performance or compatibility.
-
-If PowerShell cannot find `qvac`, close and reopen VS Code so PATH refreshes.
 
 ### 2. Verify Vulkan
 
@@ -78,7 +82,7 @@ Require a Vulkan API version of 1.4 or newer. If only an older version is availa
 
 **Download the prebuilt VSIX (recommended):**
 
-Download the latest `localpilot-0.2.0.vsix` from:
+Download the latest `localpilot-0.3.0.vsix` from:
 
 ```text
 https://github.com/bolajiev/localpilot/releases/latest
@@ -87,7 +91,7 @@ https://github.com/bolajiev/localpilot/releases/latest
 Then install it:
 
 ```powershell
-code --install-extension .\localpilot-0.2.0.vsix
+code --install-extension .\localpilot-0.3.0.vsix
 ```
 
 Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
@@ -98,20 +102,26 @@ Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
 npm ci
 npm run check
 npm run package
-code --install-extension .\localpilot-0.2.0.vsix
+code --install-extension .\localpilot-0.3.0.vsix
 ```
 
 For development, open the folder in VS Code and press **F5** to launch the Extension Development Host. The `preLaunchTask` compiles TypeScript.
 
 ### 4. First run
 
-1. Open the Command Palette and run **LocalPilot: Check Runtime**. Review the CLI, Node.js, doctor, server, alias, and cache summary.
-2. Optional: run **LocalPilot: Choose Model or Local GGUF** to pick a larger catalog model or an existing GGUF file. The default is Qwen3 0.6B.
-3. Run **LocalPilot: Start / Load Local Model**. The first catalog-model start downloads the model (about 382 MB for the default) and requires internet. The notification can be cancelled; LocalPilot then kills the process it started.
-4. Run **LocalPilot: Chat with Local Model**, or select code and run **LocalPilot: Explain Selected Code**.
+Click the LocalPilot robot icon in the Activity Bar, or open the Command Palette and run **LocalPilot: Set Up LocalPilot (QVAC + Model)**.
+
+1. If QVAC is missing, LocalPilot asks once to install it into VS Code storage. This downloads about **3 GB** and does not require administrator rights or a global npm install.
+2. LocalPilot writes a loopback-only config, starts QVAC, and downloads the default model (about 382 MB). The progress notification is cancellable; cancelling stops the process LocalPilot started.
+3. Optional: run **LocalPilot: Choose Model or Local GGUF** to pick a larger catalog model or an existing GGUF file.
+4. Ask a question in the sidebar, or select code and run **LocalPilot: Explain Selected Code**.
 5. Run **LocalPilot: Stop Runtime** to unload the model and stop the managed process.
 
 The initial response can be slow on CPU. The default context is 4096 tokens and the default output cap is 384 tokens. Adjust `localpilot.maxOutputTokens` if needed.
+
+### Why isn't everything inside the VSIX?
+
+The QVAC runtime is roughly **3.3 GB installed** and contains platform-specific native binaries. Bundling it plus a model into every VSIX would create a very large, platform-specific package and still would not remove the Node/Vulkan system requirements. LocalPilot instead downloads the tested QVAC CLI once into VS Code storage, then downloads the model once. After that, the core workflow is offline-capable. Node.js and a Vulkan 1.4-capable driver are operating-system prerequisites that an extension cannot safely install for you.
 
 ## Offline use
 
@@ -211,6 +221,7 @@ The 0.6B model is intentionally small for CPU-first execution. It is useful for 
 | `localpilot.startupTimeoutMs` | `1800000` | Allows 30 minutes for first download/load. |
 | `localpilot.requestTimeoutMs` | `900000` | Per-response timeout. |
 | `localpilot.autoStart` | `false` | If false, Chat/Explain asks before starting the runtime. |
+| `localpilot.autoInstallQvac` | `true` | If QVAC is missing, offer to install it privately into VS Code storage. About 3 GB; requires Node/npm and internet. |
 | `localpilot.stopOnExit` | `true` | Stop a LocalPilot-managed process when VS Code shuts down. External servers are never killed. |
 
 ## How it works
@@ -283,11 +294,12 @@ See [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for detailed Windows gu
 
 | Symptom | Action |
 | --- | --- |
-| `QVAC CLI was not found on PATH` | Reinstall `npm install -g @qvac/cli@0.16.0`, reopen VS Code, or set `localpilot.qvacPath`. |
-| Unsupported Node.js | Install Node 22.21+ or 24.9+, set `localpilot.nodePath`, reopen VS Code. |
+| QVAC CLI was not found | Use **Set Up LocalPilot** to install it privately, or manually install `npm install -g @qvac/cli@0.16.0` and reopen VS Code. |
+| Unsupported Node.js | Install Node 22.21+ or 24.9+, set `localpilot.nodePath`, reopen VS Code. Node/npm are required for the automatic QVAC install. |
 | Vulkan/runtime failure | Update the GPU driver; `vulkaninfo --summary` must report Vulkan 1.4+. Required even for CPU. |
 | Port already in use | Stop the other service or change `localpilot.port`. LocalPilot will not kill an unknown server. |
-| First start fails while offline | The model was not fully cached. Connect, start once successfully, then retest offline. |
+| First setup fails while offline | QVAC and the model are not cached. Connect once, complete **Set Up LocalPilot**, then retest offline. |
+| Automatic QVAC install fails | Check internet, free disk (about 4 GB+), and Node/npm. The diagnostics log has the npm error tail. Manual fallback: `npm install -g @qvac/cli@0.16.0`. |
 | `model_not_found` | Start the runtime from LocalPilot, or add `localpilot-model` to the external server's `qvac.config`. |
 | Local GGUF not found / invalid | Pick the file again with **Choose Model or Local GGUF**; it must be an absolute path to a non-empty `.gguf` file. |
 | Local GGUF loads but chat is poor/fails | It may be incompatible with QVAC's llama.cpp chat template or too large; use the tested Qwen3 0.6B default to isolate the issue. |
@@ -308,6 +320,8 @@ Recommended track: **Offline AI apps**.
 - Windows execution is unverified in this repository. The Vulkan 1.4 gate is the highest-risk Windows blocker.
 - CPU latency is high in the shared CI environment; measure the target PC.
 - One active model and alias. The model chooser rewrites the config and restarts the runtime; there is no multi-model routing, RAG, embeddings, agent loop, or automatic file edit.
+- The first setup is not fully offline: it downloads the QVAC runtime (~3 GB) and then the model. Node.js and Vulkan 1.4 remain system prerequisites and are not bundled.
+- The automatic installer is tested as a real 3.3 GB npm install and through managed-runtime resolution, but its interactive modal prompt is not automated in CI.
 - The model chooser is a curated shortlist, not a live model marketplace. Local GGUF loading bypasses QVAC checksum validation.
 - Reasoning is disabled by default; enabling it can consume the entire output budget.
 - The chat send path and Explain command are automated through the VS Code extension host; the raw webview button-click event itself is not simulated.

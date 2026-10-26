@@ -17,6 +17,7 @@ export function testSettings(overrides: Partial<LocalPilotSettings> = {}): Local
     startupTimeoutMs: 1800000,
     requestTimeoutMs: 900000,
     autoStart: false,
+    autoInstallQvac: true,
     stopOnExit: true,
     ...overrides
   };

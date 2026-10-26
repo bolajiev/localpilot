@@ -19,6 +19,7 @@ export interface LocalPilotSettings {
   startupTimeoutMs: number;
   requestTimeoutMs: number;
   autoStart: boolean;
+  autoInstallQvac: boolean;
   stopOnExit: boolean;
 }
 
@@ -153,6 +154,10 @@ export function validateSettings(settings: LocalPilotSettings): void {
     settings.startupTimeoutMs < 30000
   ) {
     throw new LocalPilotError("runtime-start", "localpilot.startupTimeoutMs must be at least 30000.");
+  }
+
+  if (typeof settings.autoInstallQvac !== "boolean") {
+    throw new LocalPilotError("runtime-start", "localpilot.autoInstallQvac must be true or false.");
   }
 
   if (!Number.isInteger(settings.requestTimeoutMs) || settings.requestTimeoutMs < 5000) {

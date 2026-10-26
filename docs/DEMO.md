@@ -6,8 +6,8 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
 
 1. Windows target is booted and `vulkaninfo --summary` reports Vulkan 1.4+.
 2. `node --version` is 22.21+ (22.x) or 24.9+.
-3. `qvac --version` is `0.16.0`; `qvac doctor` exits 0.
-4. LocalPilot VSIX is installed.
+3. LocalPilot VSIX is installed and the Activity Bar icon is visible.
+4. Run **Set Up LocalPilot** once; let it install QVAC (about 3 GB) and the model.
 5. Model cache is primed:
    - Run **LocalPilot: Start / Load Local Model** with internet.
    - Run one chat prompt and one **Explain Selected Code**.
@@ -15,15 +15,15 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
    - Run **LocalPilot: Stop Runtime**.
 6. Close other memory-heavy apps so the 16 GB machine has room for the worker.
 7. Prepare a small code file with a 10-30 line function selected. Do not select the whole file.
-8. Clear the chat panel if you do not want previous prompts in the recording.
+8. Clear the sidebar chat if you do not want previous prompts in the recording.
 9. If you plan to demo an existing local GGUF, confirm **Choose Model or Local GGUF** loads it and that it answers before recording.
 10. Record screen and, if possible, the Task Manager memory graph.
 
 ## Demo script (about 4-6 minutes)
 
-### 1. Show the runtime and version
+### 1. Show the sidebar and runtime version
 
-Open the Command Palette:
+Click the LocalPilot robot icon in the Activity Bar, then run:
 
 - **LocalPilot: Check Runtime**
 
@@ -69,7 +69,7 @@ Now give me a one-line summary.
 
 ### 4. Explain Selected Code
 
-Close or hide the chat panel. In the editor, select **only one small function**. Run **LocalPilot: Explain Selected Code** (or right-click the selection).
+Hide the sidebar if needed. In the editor, select **only one small function**. Run **LocalPilot: Explain Selected Code** (or right-click the selection).
 
 Show:
 

@@ -2,7 +2,7 @@
   "name": "localpilot",
   "displayName": "LocalPilot",
   "description": "Private, CPU-first local AI coding assistant for VS Code powered by QVAC.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "localpilot",
   "license": "MIT",
   "engines": {
@@ -22,11 +22,17 @@
     "assistant"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:localpilot.chatView"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "localpilot.setup",
+        "title": "Set Up LocalPilot (QVAC + Model)",
+        "category": "LocalPilot"
+      },
       {
         "command": "localpilot.checkRuntime",
         "title": "Check Runtime",
@@ -183,8 +189,33 @@
           "type": "boolean",
           "default": true,
           "description": "Stop the QVAC process started by LocalPilot when VS Code shuts down. Servers that LocalPilot did not start are never killed."
+        },
+        "localpilot.autoInstallQvac": {
+          "type": "boolean",
+          "default": true,
+          "description": "If the QVAC CLI is missing, offer to install it automatically into VS Code storage. The download is about 3 GB and requires Node.js and internet. This never replaces an existing global QVAC install."
         }
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "localpilot",
+          "title": "LocalPilot",
+          "icon": "resources/localpilot.svg"
+        }
+      ]
+    },
+    "views": {
+      "localpilot": [
+        {
+          "type": "webview",
+          "id": "localpilot.chatView",
+          "name": "Assistant",
+          "icon": "resources/localpilot.svg",
+          "contextualTitle": "LocalPilot"
+        }
+      ]
     }
   },
   "scripts": {

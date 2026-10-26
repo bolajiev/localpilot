@@ -274,6 +274,21 @@ export class RuntimeManager implements vscode.Disposable {
     return path.join(this.context.globalStorageUri.fsPath, "qvac.config.json");
   }
 
+  public get managedRuntimeDir(): string {
+    return path.join(this.context.globalStorageUri.fsPath, "qvac-runtime");
+  }
+
+  public get managedRuntimeEntry(): string {
+    return path.join(
+      this.managedRuntimeDir,
+      "node_modules",
+      "@qvac",
+      "cli",
+      "dist",
+      "index.js"
+    );
+  }
+
   public createClient(settings = this.settingsProvider()): QvacClient {
     return createQvacClient(endpointForSettings(settings), settings.modelAlias);
   }
@@ -504,7 +519,8 @@ export class RuntimeManager implements vscode.Disposable {
     progress?.("Locating the QVAC CLI and Node.js…");
     const runtime = await locateQvacRuntime({
       qvacPath: settings.qvacPath,
-      nodePath: settings.nodePath
+      nodePath: settings.nodePath,
+      extraCandidates: [this.managedRuntimeEntry]
     });
     this.log(
       `Runtime located: qvac=${runtime.cliVersion} cli=${runtime.cliPath} node=${runtime.nodeVersion ?? "n/a"} viaNode=${runtime.viaNode}`
@@ -943,7 +959,8 @@ export class RuntimeManager implements vscode.Disposable {
     try {
       cli = await locateQvacRuntime({
         qvacPath: settings.qvacPath,
-        nodePath: settings.nodePath
+        nodePath: settings.nodePath,
+        extraCandidates: [this.managedRuntimeEntry]
       });
       warnings.push(...cli.warnings);
       try {
