@@ -51,8 +51,8 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Model source | `unsloth/Qwen3-0.6B-GGUF` commit `50968a4468ef4233ed78cd7c3de230dd1d61a56b` |
 | Model license | Apache-2.0 |
 | QVAC integration files | `src/runtimeLocator.ts`, `src/runtimeManager.ts`, `src/qvacClient.ts`, `src/runtimeConfig.ts` |
-| LocalPilot version | `0.4.0` |
-| Windows package | `localpilot-0.4.0-win32-x64.vsix` (bundled Node.js 24.21.0 + npm) |
+| LocalPilot version | `0.5.0` |
+| Windows package | `localpilot-0.5.0-win32-x64.vsix` (bundled Node.js 24.21.0, npm, full QVAC CLI, and Qwen3-0.6B model) |
 | Model loading | Curated catalog download or user-supplied local `.gguf` path |
 | UX | Activity Bar sidebar; one-click QVAC + model setup |
 | Extension host | VS Code 1.95+ |
@@ -68,14 +68,15 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Existing local GGUF loaded and answered | PASS (Linux) | Explicit `src` + `llamacpp-completion`; extension-host integration |
 | Activity Bar sidebar | PASS (Linux) | WebviewView resolved and chat/explain commands passed in Extension Host |
 | Automatic QVAC install | PASS (module) | Real 3.3 GB npm install into local storage + managed-runtime resolution; interactive prompt not automated |
-| Bundled Node Windows package | BUILT | `win32-x64` VSIX contains node.exe + npm 11.19.0; Windows execution NOT TESTED |
+| Windows all-in-one package contents | BUILT | `win32-x64` VSIX contains Node/npm, QVAC 0.16.0 + win32 runtime, and Qwen3-0.6B; Windows execution NOT TESTED |
+| Bundled QVAC/model path | PASS (Linux) | Bundled-model config loaded and real chat returned `"LocalPilot integration OK."`; Windows QVAC binary not runnable on Linux |
 | Explain Selected Code with real model | PASS (Linux) | VS Code command integration and offline script |
 | Offline inference after cache | PASS (Linux) | Isolated network namespace, real chat + explain |
 | Windows 10/11 + Vulkan 1.4 | NOT TESTED | No Windows host available in this environment |
 | Windows VSIX install/smoke test | NOT TESTED | VSIX built on Linux; cross-platform package not run on Windows |
 | Demo video with network off | NOT DONE | Must be recorded by the submitter on the target device |
 | Repository link | PASS | https://github.com/bolajiev/localpilot |
-| Windows self-contained download | PASS | `localpilot-0.4.0-win32-x64.vsix` (Node/npm bundled) |
+| Windows all-in-one download | PASS | `localpilot-0.5.0-win32-x64.vsix` (Node + QVAC + model bundled) |
 | GitHub Actions CI | PASS | Build/test/package workflow succeeded; VSIX artifact uploaded |
 | Clean install/typecheck/unit tests | PASS | 43 unit tests, TypeScript, generic/win32 VSIX |
 | Extension Host integration | PASS (Linux) | Start, check, chat, explain command, stop, error paths |
@@ -84,7 +85,7 @@ Do not upgrade "PASS (Linux)" to "tested on Windows" without running the Windows
 
 ## Suggested Build description
 
-> LocalPilot is a privacy-first VS Code extension that adds a local AI assistant to the Activity Bar sidebar. It chats with a local QVAC model and explains selected code without sending prompts or source to the cloud. The Windows VSIX bundles Node.js/npm; one-click setup installs the QVAC runtime privately into VS Code storage, downloads Qwen3-0.6B, offers a small catalog model chooser, and can load an existing local GGUF file. It rejects non-loopback endpoints and has no cloud fallback or telemetry. The MVP was validated with real QVAC inference and an isolated-network offline test on Linux x64 CPU. Windows verification is documented as pending because the target Vulkan 1.4 machine was not available to the build environment.
+> LocalPilot is a privacy-first VS Code extension that adds a local AI assistant to the Activity Bar sidebar. It chats with a local QVAC model and explains selected code without sending prompts or source to the cloud. The Windows VSIX bundles Node.js, QVAC, and Qwen3-0.6B in one package; no QVAC or model download is required. It offers a small catalog model chooser and can load an existing local GGUF file. It rejects non-loopback endpoints and has no cloud fallback or telemetry. The MVP was validated with real QVAC inference and an isolated-network offline test on Linux x64 CPU. Windows verification is documented as pending because the target Vulkan 1.4 machine was not available to the build environment.
 
 ## Submission checklist
 

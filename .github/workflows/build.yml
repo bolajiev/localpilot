@@ -57,12 +57,17 @@ jobs:
       - name: Bundle Node.js for Windows
         run: bash scripts/prepare-bundled-node.sh
 
-      - name: Package self-contained Windows VSIX
+      - name: Bundle QVAC win32 runtime
+        run: bash scripts/prepare-bundled-qvac-win32.sh
+
+      - name: Bundle default model
+        run: bash scripts/prepare-bundled-model.sh
+
+      - name: Package all-in-one Windows VSIX
         run: npm run package:win32
 
-      - name: Upload Windows VSIX
-        uses: actions/upload-artifact@v4
-        with:
-          name: localpilot-win32-x64
-          path: localpilot-0.4.0-win32-x64.vsix
-          if-no-files-found: error
+      - name: Verify Windows VSIX contents
+        run: |
+          ls -lh localpilot-0.5.0-win32-x64.vsix
+          unzip -t localpilot-0.5.0-win32-x64.vsix > /dev/null
+          unzip -l localpilot-0.5.0-win32-x64.vsix | grep -E 'resources/node/node.exe|resources/qvac-runtime/node_modules/@qvac/cli/dist/index.js|resources/models/Qwen3-0.6B-Q4_0.gguf'

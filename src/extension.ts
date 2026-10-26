@@ -32,6 +32,7 @@ let conversation: ChatMessage[] = [];
 let requestAbort: AbortController | undefined;
 let busy = false;
 let suppressSettingsWarning = false;
+let lastError: LocalPilotError | undefined;
 
 const DEFAULT_MODEL_ID = "QWEN3_600M_INST_Q4";
 
@@ -48,6 +49,7 @@ export interface LocalPilotApi {
   checkRuntime(): Promise<RuntimeCheckReport>;
   createClient(): QvacClient;
   getLastResponse(): string | undefined;
+  getLastError(): { code: string; message: string; hint?: string } | undefined;
   sendChat(text: string): Promise<void>;
 }
 
@@ -138,6 +140,7 @@ function openSettings(): void {
 }
 
 function reportError(error: LocalPilotError, fromPanel: boolean): void {
+  lastError = error;
   log(`error code=${error.code} message=${error.message}`);
   const view = panel();
   if (fromPanel && view) {
@@ -600,7 +603,8 @@ async function ensureQvacInstalled(
       qvacPath: settings.qvacPath,
       nodePath: settings.nodePath,
       extraCandidates: [runtime().managedRuntimeEntry],
-      bundledNodePath: runtime().bundledNodePath
+      bundledNodePath: runtime().bundledNodePath,
+      bundledQvacEntry: runtime().bundledQvacEntry
     });
 
   let initialError: LocalPilotError;
@@ -1063,6 +1067,10 @@ export function activate(context: vscode.ExtensionContext): LocalPilotApi {
     createClient: () => runtime().createClient(),
     getLastResponse: () =>
       [...conversation].reverse().find((message) => message.role === "assistant")?.content,
+    getLastError: () =>
+      lastError
+        ? { code: lastError.code, message: lastError.message, hint: lastError.hint }
+        : undefined,
     sendChat: (text: string) => handlePanelAction({ type: "send", text })
   };
 }

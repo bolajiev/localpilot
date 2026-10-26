@@ -1,4 +1,5 @@
 import { execFile, spawn, ChildProcess } from "node:child_process";
+import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import * as vscode from "vscode";
 import { LocalPilotError, formatFriendlyError, looksLikeOfflineCacheMiss, toFriendlyError } from "./errors";
@@ -280,6 +281,37 @@ export class RuntimeManager implements vscode.Disposable {
       : path.join(this.context.extensionUri.fsPath, "resources", "node", "bin", "node");
   }
 
+  public get bundledModelPath(): string {
+    return path.join(
+      this.context.extensionUri.fsPath,
+      "resources",
+      "models",
+      "Qwen3-0.6B-Q4_0.gguf"
+    );
+  }
+
+  public get bundledQvacEntry(): string {
+    const runtimeRoot = path.join(
+      this.context.extensionUri.fsPath,
+      "resources",
+      "qvac-runtime",
+      "node_modules"
+    );
+    const platformPackages =
+      process.platform === "win32"
+        ? ["bare-runtime-win32-x64", "@qvac/fabric-win32-x64"]
+        : process.platform === "linux"
+          ? ["bare-runtime-linux-x64", "@qvac/fabric-linux-x64"]
+          : [];
+    if (
+      platformPackages.length === 0 ||
+      !platformPackages.every((entry) => existsSync(path.join(runtimeRoot, entry)))
+    ) {
+      return "";
+    }
+    return path.join(runtimeRoot, "@qvac", "cli", "dist", "index.js");
+  }
+
   public get managedRuntimeDir(): string {
     return path.join(this.context.globalStorageUri.fsPath, "qvac-runtime");
   }
@@ -452,6 +484,7 @@ export class RuntimeManager implements vscode.Disposable {
       throw friendly;
     }
 
+    const effectiveSettings = await this.withBundledModel(settings);
     const endpoint = endpointForSettings(settings);
     if (this.child && this.child.exitCode === null) {
       const busy = new LocalPilotError(
@@ -527,7 +560,8 @@ export class RuntimeManager implements vscode.Disposable {
       qvacPath: settings.qvacPath,
       nodePath: settings.nodePath,
       extraCandidates: [this.managedRuntimeEntry],
-      bundledNodePath: this.bundledNodePath
+      bundledNodePath: this.bundledNodePath,
+      bundledQvacEntry: this.bundledQvacEntry
     });
     this.log(
       `Runtime located: qvac=${runtime.cliVersion} cli=${runtime.cliPath} node=${runtime.nodeVersion ?? "n/a"} viaNode=${runtime.viaNode}`
@@ -537,8 +571,21 @@ export class RuntimeManager implements vscode.Disposable {
     }
 
     progress?.("Writing the local QVAC configuration…");
-    await writeQvacConfig(this.configPath, settings);
-    this.log(`Wrote QVAC config: ${this.configPath}`);
+    await writeQvacConfig(this.configPath, effectiveSettings);
+    this.log(
+      `Wrote QVAC config: ${this.configPath} modelSource=${
+        effectiveSettings.modelPath ? "local" : "catalog"
+      }`
+    );
+    const debugLog = process.env.LOCALPILOT_RUNTIME_LOG_FILE;
+    if (debugLog) {
+      void fs.appendFile(
+        debugLog,
+        `[localpilot] cwd=${this.context.globalStorageUri.fsPath} config=${this.configPath} modelSource=${
+          effectiveSettings.modelPath ? "local" : "catalog"
+        } cli=${runtime.cliPath}\n`
+      ).catch(() => undefined);
+    }
 
     if (signal?.aborted) {
       throw new LocalPilotError("cancelled", "Startup was cancelled.");
@@ -806,6 +853,10 @@ export class RuntimeManager implements vscode.Disposable {
       this.diagnostics.shift();
     }
     this.output.appendLine(`[qvac] ${safe}`);
+    const debugLog = process.env.LOCALPILOT_RUNTIME_LOG_FILE;
+    if (debugLog) {
+      void fs.appendFile(debugLog, `[qvac] ${safe}\n`).catch(() => undefined);
+    }
   }
 
   public async stop(): Promise<StopResult> {
@@ -945,12 +996,15 @@ export class RuntimeManager implements vscode.Disposable {
   }
 
   public async check(): Promise<RuntimeCheckReport> {
-    const settings = this.settingsProvider();
+    const configuredSettings = this.settingsProvider();
+    let settings = configuredSettings;
     const warnings: string[] = [];
     const errors: string[] = [];
     let endpoint = "";
 
     try {
+      validateSettings(configuredSettings);
+      settings = await this.withBundledModel(configuredSettings);
       validateSettings(settings);
       endpoint = endpointForSettings(settings);
       if (settings.modelPath) {
@@ -968,7 +1022,8 @@ export class RuntimeManager implements vscode.Disposable {
         qvacPath: settings.qvacPath,
         nodePath: settings.nodePath,
         extraCandidates: [this.managedRuntimeEntry],
-        bundledNodePath: this.bundledNodePath
+        bundledNodePath: this.bundledNodePath,
+        bundledQvacEntry: this.bundledQvacEntry
       });
       warnings.push(...cli.warnings);
       try {
@@ -1046,6 +1101,21 @@ export class RuntimeManager implements vscode.Disposable {
       warnings,
       errors
     };
+  }
+
+  private async withBundledModel(settings: LocalPilotSettings): Promise<LocalPilotSettings> {
+    if (settings.modelPath || settings.modelId !== "QWEN3_600M_INST_Q4") {
+      return settings;
+    }
+    try {
+      const stat = await fs.stat(this.bundledModelPath);
+      if (stat.isFile() && stat.size > 0) {
+        return { ...settings, modelPath: this.bundledModelPath };
+      }
+    } catch {
+      // Generic/unbundled builds fall back to the QVAC catalog download.
+    }
+    return settings;
   }
 
   private updateStatus(patch: Partial<RuntimeStatus> & Pick<RuntimeStatus, "state" | "label" | "detail">): void {

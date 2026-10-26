@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 - 2026-10-26
+
+- The Windows VSIX is now fully self-contained: Node.js 24.21.0, npm, the full QVAC CLI 0.16.0 with Windows natives, and the Qwen3-0.6B Q4_0 model are bundled.
+- No QVAC or model download is required on Windows after installing the VSIX; only the Vulkan 1.4 driver remains a system prerequisite.
+- Added platform-aware bundled-runtime selection so a Windows runtime is never used on Linux (and vice versa).
+- Added a reproducible `scripts/prepare-bundled-qvac-win32.sh` and `scripts/prepare-bundled-model.sh`.
+- Generic VSIX remains small and downloads QVAC/model on first setup.
+
 ## 0.4.0 - 2026-10-26
 
 - Added a Windows self-contained VSIX that bundles Node.js 24.21.0 and npm 11.19.0.

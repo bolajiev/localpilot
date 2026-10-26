@@ -183,6 +183,17 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.5.0 fully bundled Windows package (2026-10-26)
+
+- The Windows VSIX now bundles the **full QVAC CLI 0.16.0** with win32-x64 natives, **Node.js 24.21.0 + npm 11.19.0**, and the **Qwen3-0.6B Q4_0 model** (382,156,480 bytes, Apache-2.0).
+- Windows users install one VSIX; there is no QVAC, Node, npm, or model download after installation. The only remaining system dependency is a Vulkan 1.4-capable GPU driver.
+- Added platform-aware runtime selection: the extension only uses a bundled QVAC runtime when the matching platform package (`bare-runtime-win32-x64` + `@qvac/fabric-win32-x64`, or Linux equivalents) is present. This prevents a Windows bundle from being executed on Linux.
+- Added `scripts/prepare-bundled-qvac-win32.sh` (npm install with `--os=win32 --cpu=x64`) and `scripts/prepare-bundled-model.sh` (cache copy or download with SHA-256 verification).
+- Model license/notice and Node/QVAC licenses are included in the bundle.
+- Verified on Linux with the bundled **model** path (system Linux QVAC because the win32 QVAC bundle cannot run on Linux): config used `/resources/models/Qwen3-0.6B-Q4_0.gguf`, checkRuntime passed, and real chat returned `"LocalPilot integration OK."` (127 s on the loaded host).
+- The Windows QVAC binaries were installed from the official npm packages and their runtime packages are present, but **Windows execution remains NOT TESTED** because no Windows machine is available here.
+- The full Windows VSIX is large (about 1.4 GB compressed / ~3 GB installed); this is the tradeoff for a true all-in-one package.
+
 ## 0.4.0 self-contained Windows package (2026-10-26)
 
 - Added a Windows self-contained VSIX that bundles **Node.js 24.21.0** (official win-x64) and **npm 11.19.0** under `resources/node/`.
@@ -261,7 +272,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - GitHub Actions workflow: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
 - The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and one-click QVAC/model setup. The `0.4.0` release adds the self-contained Windows VSIX with bundled Node/npm.
-- Release assets: `localpilot-0.4.0-win32-x64.vsix` (recommended on Windows; Node bundled) and `localpilot-0.4.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Release assets: `localpilot-0.5.0-win32-x64.vsix` (recommended on Windows; Node + QVAC + model bundled) and `localpilot-0.5.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -279,8 +290,9 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Unit tests pass (43/43)
 - [x] Activity Bar sidebar view verified in extension host (0.3.0)
 - [x] Private QVAC auto-install module verified with a real 3.3 GB install
-- [x] Windows self-contained VSIX built with bundled Node/npm
+- [x] Windows all-in-one VSIX built with bundled Node, QVAC, and model
 - [x] Bundled Node selection verified with PATH excluding Node
+- [x] Bundled model path verified with real inference
 - [x] Extension Host smoke test pass (Linux)
 - [x] Real QVAC inference pass (Linux CPU)
 - [x] Existing local GGUF model load + real inference pass (Linux)
@@ -291,11 +303,11 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Core offline inference pass (Linux, isolated network namespace)
 - [ ] Windows Vulkan 1.4 / clean install / inference / offline: NOT TESTED
 - [ ] VS Code UI offline restart: NOT TESTED
-- [x] Generic VSIX and Windows self-contained VSIX generated
+- [x] Generic VSIX and Windows all-in-one VSIX generated
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.4.0; Windows self-contained + generic)
+- [x] GitHub Release assets published for download (0.5.0; Windows all-in-one + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

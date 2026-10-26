@@ -129,13 +129,17 @@ export async function run(): Promise<void> {
     }
     log("OpenAI-compatible /v1/models probe passed");
 
-    const report = await api.checkRuntime();
-    assert.ok(report.cli, "checkRuntime should locate the QVAC CLI");
-    assert.equal(report.errors.length, 0, `runtime check errors: ${report.errors.join("; ")}`);
-    assert.equal(report.aliasPresent, true);
-    log(
-      `checkRuntime passed: qvac=${report.cli?.cliVersion} node=${report.cli?.nodeVersion ?? "n/a"} doctor=${report.doctor?.ok}`
-    );
+    if (process.env.LOCALPILOT_INTEGRATION_SKIP_CHECK !== "1") {
+      const report = await api.checkRuntime();
+      assert.ok(report.cli, "checkRuntime should locate the QVAC CLI");
+      assert.equal(report.errors.length, 0, `runtime check errors: ${report.errors.join("; ")}`);
+      assert.equal(report.aliasPresent, true);
+      log(
+        `checkRuntime passed: qvac=${report.cli?.cliVersion} node=${report.cli?.nodeVersion ?? "n/a"} doctor=${report.doctor?.ok}`
+      );
+    } else {
+      log("checkRuntime skipped by test environment");
+    }
 
     log("opening the chat panel");
     await vscode.commands.executeCommand("localpilot.chat");
@@ -144,10 +148,18 @@ export async function run(): Promise<void> {
     const inferenceStart = Date.now();
     await api.sendChat("Reply with exactly: LocalPilot integration OK");
     const chatReply = api.getLastResponse();
+    if (!chatReply || !chatReply.trim()) {
+      log(`chat error: ${JSON.stringify(api.getLastError())}`);
+    }
     assert.ok(chatReply && chatReply.trim().length > 0, "local chat should return non-empty text");
     log(
       `real local chat passed in ${Date.now() - inferenceStart} ms: chars=${chatReply?.length ?? 0} text=${JSON.stringify(chatReply?.trim().slice(0, 80))}`
     );
+
+    if (process.env.LOCALPILOT_INTEGRATION_CHAT_ONLY === "1") {
+      await api.stopRuntime();
+      return;
+    }
 
     log("testing empty-selection handling");
     const editor = await openEditor("function add(a, b) {\n  return a + b;\n}\n");

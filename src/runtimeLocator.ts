@@ -30,6 +30,7 @@ export interface LocatorOptions {
   nodePath?: string;
   extraCandidates?: string[];
   bundledNodePath?: string;
+  bundledQvacEntry?: string;
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
   homeDir?: string;
@@ -301,7 +302,17 @@ export async function locateQvacRuntime(options: LocatorOptions = {}): Promise<R
 
   let resolved: ResolvedCli | undefined;
   const configured = options.qvacPath?.trim();
-  if (configured) {
+  if (
+    !configured &&
+    options.bundledQvacEntry &&
+    (await fileExists(options.bundledQvacEntry, fsDeps.stat))
+  ) {
+    resolved = await resolveCliCandidate(options.bundledQvacEntry, platform, {
+      ...fsDeps,
+      env,
+      homeDir
+    });
+  } else if (configured) {
     const looksLikePath =
       path.isAbsolute(configured) ||
       configured.includes("/") ||

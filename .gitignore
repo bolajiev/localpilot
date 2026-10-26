@@ -6,3 +6,5 @@ npm-debug.log*
 .tmp/
 .vscode-test/
 resources/node/
+resources/qvac-runtime/
+resources/models/

@@ -40,12 +40,12 @@ After installation, LocalPilot appears as a robot icon in the Activity Bar. Clic
 
 - Windows 10/11 x64.
 - **Vulkan 1.4 or newer**, including CPU-only inference. Update the AMD/Intel/NVIDIA GPU driver. Verify with the Vulkan SDK's `vulkaninfo --summary`. A machine with no Vulkan 1.4-capable driver does not satisfy QVAC's published Windows requirement.
-- **Windows all-in-one VSIX:** no separate Node.js install. The `win32-x64` VSIX bundles Node.js `24.21.0` and npm.
-- Generic/source builds still require Node.js `22.21+` (22.x) or `24.9+`.
+- **Windows all-in-one VSIX:** includes Node.js `24.21.0`, npm, the full QVAC CLI `0.16.0`, and the default Qwen3-0.6B model. No QVAC/model download is needed.
+- Generic/source builds still require Node.js `22.21+` (22.x) or `24.9+` and download QVAC/model on first setup.
 - VS Code `1.95+`.
 - 16 GB RAM recommended. The tested model file is 382 MB, but the QVAC worker used about **1.5 GB RSS** during inference; Windows, VS Code, and the KV cache need memory too.
-- Internet for the first setup only. LocalPilot downloads the QVAC runtime (about 3 GB) and then the model (about 382 MB by default). Later starts can use the cache offline.
-- About 4 GB of free disk for QVAC plus the model, and extra room for VS Code and the KV cache.
+- About 4 GB of free disk for the Windows package (about 1.4 GB download, ~3 GB installed) plus room for VS Code and the KV cache.
+- **Vulkan 1.4+ from the GPU driver** is the only remaining system prerequisite. The extension cannot install graphics drivers.
 
 ### Verified development environment
 
@@ -80,7 +80,7 @@ Require a Vulkan API version of 1.4 or newer. If only an older version is availa
 
 **Download the prebuilt VSIX (recommended):**
 
-Download the latest Windows self-contained `localpilot-0.4.0-win32-x64.vsix` from:
+Download the latest Windows all-in-one `localpilot-0.5.0-win32-x64.vsix` from:
 
 ```text
 https://github.com/bolajiev/localpilot/releases/latest
@@ -89,12 +89,12 @@ https://github.com/bolajiev/localpilot/releases/latest
 Then install it:
 
 ```powershell
-code --install-extension .\localpilot-0.4.0-win32-x64.vsix
+code --install-extension .\localpilot-0.5.0-win32-x64.vsix
 ```
 
 Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
 
-The `win32-x64` asset is the recommended Windows package. The generic `localpilot-0.4.0.vsix` is for development/other platforms and requires a system Node.js.
+The `win32-x64` asset is the recommended Windows package: it contains Node, QVAC, and the default model. The generic `localpilot-0.5.0.vsix` is for development/other platforms and requires a system Node.js.
 
 **Build from source instead:**
 
@@ -102,7 +102,7 @@ The `win32-x64` asset is the recommended Windows package. The generic `localpilo
 npm ci
 npm run check
 npm run package
-code --install-extension .\localpilot-0.4.0.vsix
+code --install-extension .\localpilot-0.5.0.vsix
 ```
 
 For development, open the folder in VS Code and press **F5** to launch the Extension Development Host. The `preLaunchTask` compiles TypeScript.
@@ -111,19 +111,25 @@ For development, open the folder in VS Code and press **F5** to launch the Exten
 
 Click the LocalPilot robot icon in the Activity Bar, or open the Command Palette and run **LocalPilot: Set Up LocalPilot (QVAC + Model)**.
 
-1. If QVAC is missing, LocalPilot asks once to install it into VS Code storage. This downloads about **3 GB** and does not require administrator rights or a global npm install.
-2. LocalPilot writes a loopback-only config, starts QVAC, and downloads the default model (about 382 MB). The progress notification is cancellable; cancelling stops the process LocalPilot started.
+1. On the Windows all-in-one package, QVAC and the default model are already inside the extension. No setup download is needed. On generic/source builds, LocalPilot offers to install QVAC into VS Code storage and downloads the model.
+2. LocalPilot writes a loopback-only config, starts QVAC, and loads the bundled model (or the catalog model you selected).
 3. Optional: run **LocalPilot: Choose Model or Local GGUF** to pick a larger catalog model or an existing GGUF file.
 4. Ask a question in the sidebar, or select code and run **LocalPilot: Explain Selected Code**.
 5. Run **LocalPilot: Stop Runtime** to unload the model and stop the managed process.
 
 The initial response can be slow on CPU. The default context is 4096 tokens and the default output cap is 384 tokens. Adjust `localpilot.maxOutputTokens` if needed.
 
-### Why isn't everything inside the VSIX?
+### Is everything inside the Windows VSIX?
 
-The Windows VSIX **does bundle Node.js and npm**, so there is no separate Node install. The QVAC runtime is roughly **3.3 GB installed** and contains platform-specific native binaries, so LocalPilot downloads it once into VS Code storage during **Set Up LocalPilot**, then downloads the model once. After that, the core workflow is offline-capable.
+**Yes.** The `win32-x64` VSIX contains:
 
-The only remaining system prerequisite is a **Vulkan 1.4-capable GPU driver**. That is an operating-system driver, like the graphics driver other local-AI desktop apps require; an extension cannot safely install it.
+- Node.js `24.21.0` and npm 11.19.0.
+- The full QVAC CLI `0.16.0` with Windows x64 native components.
+- The default Qwen3-0.6B Q4_0 GGUF model (382 MB, Apache-2.0).
+
+The package is about **1.4 GB** compressed and expands to roughly 3 GB. No QVAC, Node, or model download is required after installing it. The only remaining system prerequisite is a **Vulkan 1.4-capable GPU driver**, which an extension cannot safely install.
+
+The generic VSIX remains small and downloads QVAC/model on first setup; it is intended for source development and non-Windows use.
 
 ## Offline use
 
@@ -213,7 +219,7 @@ The 0.6B model is intentionally small for CPU-first execution. It is useful for 
 | `localpilot.host` | `127.0.0.1` | Loopback host only. |
 | `localpilot.port` | `11434` | Local QVAC port. Restart the runtime after changing it. |
 | `localpilot.modelId` | `QWEN3_600M_INST_Q4` | QVAC catalog constant used when `modelPath` is empty. |
-| `localpilot.modelPath` | empty | Absolute path to an existing llama.cpp-compatible `.gguf` file. Takes precedence over `modelId`. |
+| `localpilot.modelPath` | empty | Absolute path to an existing llama.cpp-compatible `.gguf` file. Takes precedence over `modelId`. Empty uses the model bundled in the Windows all-in-one VSIX, then the catalog model. |
 | `localpilot.modelAlias` | `localpilot-model` | Alias used in OpenAI-compatible requests. |
 | `localpilot.contextSize` | `4096` | Model context window (input plus output). |
 | `localpilot.maxOutputTokens` | `384` | Maximum generated tokens per response. |
@@ -322,9 +328,10 @@ Recommended track: **Offline AI apps**.
 - Windows execution is unverified in this repository. The Vulkan 1.4 gate is the highest-risk Windows blocker.
 - CPU latency is high in the shared CI environment; measure the target PC.
 - One active model and alias. The model chooser rewrites the config and restarts the runtime; there is no multi-model routing, RAG, embeddings, agent loop, or automatic file edit.
-- The first setup is not fully offline: it downloads the QVAC runtime (~3 GB) and then the model. Node.js is bundled in the Windows VSIX; Vulkan 1.4 remains a system driver prerequisite.
-- The automatic installer is tested as a real 3.3 GB npm install and through managed-runtime resolution, but its interactive modal prompt is not automated in CI.
-- The Windows self-contained VSIX contains Node/npm but could not be executed on Windows in this environment. Package contents and bundled-runtime selection were verified on Linux; Windows runtime validation remains pending.
+- The Windows all-in-one VSIX is large (about 1.4 GB compressed / 3 GB installed). Generic/source builds still need Node and download QVAC/model.
+- Vulkan 1.4 remains a system driver prerequisite; the extension cannot install GPU drivers.
+- The automatic QVAC installer remains the fallback for generic builds. It was tested with a real 3.3 GB npm install; its interactive modal prompt is not automated.
+- The Windows all-in-one VSIX could not be executed on Windows in this environment. Package contents and bundled-runtime selection were verified on Linux; Windows runtime validation remains pending.
 - The model chooser is a curated shortlist, not a live model marketplace. Local GGUF loading bypasses QVAC checksum validation.
 - Reasoning is disabled by default; enabling it can consume the entire output budget.
 - The chat send path and Explain command are automated through the VS Code extension host; the raw webview button-click event itself is not simulated.

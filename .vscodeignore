@@ -18,3 +18,5 @@ node_modules/@vscode/**
 .github/**
 resources/node/**
 .vscodeignore*
+resources/qvac-runtime/**
+resources/models/**
