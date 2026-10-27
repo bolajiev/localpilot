@@ -183,6 +183,18 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.7.0 trimmed QVAC bundle (2026-10-26)
+
+- The Windows VSIX still contains QVAC, but no longer the full multi-modality distribution. The bundle keeps QVAC's `llm-llamacpp` plugin, inference/SDK/CLI, registry client, Bare runtime, and the Vulkan/CPU fabric backend.
+- Removed QVAC image, speech, translation, OCR, audio, TTS, classification, VLA, and decoder addons; removed `bare-ffmpeg`; removed CUDA/HIP native libraries; kept Vulkan/CPU.
+- Patched the SDK worker in the bundled runtime to register only the LLM plugin. This is a **chat-only QVAC subset**, not the full QVAC distribution; LocalPilot only uses chat/LLM.
+- Bundled QVAC installed size dropped from ~2.5 GB to **631 MiB** on win32-x64 (Node remains 108 MB). The Windows VSIX is **256.68 MB compressed** (~257 MB), down from ~1.03 GB.
+- Verified the same trimming pipeline on Linux x64: 719 MiB trimmed runtime, server ready, `qvac doctor` exit 0, and real chat returned a response (5 tokens, 29.1 s on the loaded host).
+- The model is still not bundled; the welcome page downloads/loads the user's choice.
+- Fresh-download test with the trimmed Linux runtime: moved HOME to a clean directory, QVAC downloaded the 382 MB Qwen3-0.6B GGUF through its registry client, loaded it, and returned real chat output (3 tokens in 18.6 s).
+- Windows execution of the trimmed win32 runtime remains **NOT TESTED**; packaging and contents are verified.
+- Final 0.6.0 full Extension Host integration passed; 0.7.0 changes are packaging/runtime trimming only.
+
 ## 0.6.0 welcome/setup UI with user-selected model (2026-10-26)
 
 - Replaced the chat-first sidebar with a minimal welcome page used on first open:
@@ -284,8 +296,8 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - Repository: https://github.com/bolajiev/localpilot (public)
 - GitHub Actions workflow: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
-- The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and one-click setup. `0.4.0` bundled Node. `0.5.0` bundled QVAC and the model. `0.6.0` keeps QVAC/Node bundled but moves model choice to a welcome/setup page.
-- Release assets: `localpilot-0.6.0-win32-x64.vsix` (Windows: Node + QVAC; model chosen at setup) and `localpilot-0.6.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and setup. `0.4.0` bundled Node. `0.5.0` bundled full QVAC and the model. `0.6.0` moved model choice to a welcome page. `0.7.0` trims QVAC to the chat/LLM subset to cut download size.
+- Release assets: `localpilot-0.7.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.7.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -321,7 +333,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.6.0; Windows Node+QVAC + generic)
+- [x] GitHub Release assets published for download (0.7.0; Windows Node+trimmed QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

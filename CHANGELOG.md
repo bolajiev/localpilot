@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 - 2026-10-26
+
+- Trimmed the bundled Windows QVAC runtime to the chat/LLM components and Vulkan/CPU backends.
+- Removed unused QVAC image/speech/translation/OCR/audio addons and CUDA/HIP backend libraries from the bundled runtime.
+- Reduced the bundled QVAC runtime from about 2.5 GB to about 631 MB installed and the Windows VSIX from ~1 GB to ~257 MB, while keeping QVAC LLM inference in the extension.
+- The welcome page still lets the user download Qwen3 0.6B/1.7B or select a local GGUF; no model is preloaded.
+- Added `scripts/slim-qvac-runtime.js` and integrated it into the Windows packaging job.
+
 ## 0.6.0 - 2026-10-26
 
 - Replaced the chat-first default with a minimal welcome/setup page: download Qwen3 0.6B/1.7B or choose an existing local GGUF, then continue.

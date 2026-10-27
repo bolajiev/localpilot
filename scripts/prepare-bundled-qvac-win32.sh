@@ -26,4 +26,6 @@ npm install "@qvac/cli@${QVAC_VERSION}" \
 test -f "$DEST/node_modules/@qvac/cli/dist/index.js"
 test -d "$DEST/node_modules/bare-runtime-win32-x64"
 test -d "$DEST/node_modules/@qvac/fabric-win32-x64"
-echo "Bundled Windows QVAC runtime ready: $(du -sh "$DEST" | cut -f1)"
+node "$ROOT/scripts/slim-qvac-runtime.js" "$DEST" win32-x64
+test -d "$DEST/node_modules/@qvac/fabric-win32-x64"
+echo "Bundled chat-only Windows QVAC runtime ready: $(du -sh "$DEST" | cut -f1)"
