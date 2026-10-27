@@ -183,6 +183,19 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.6.0 welcome/setup UI with user-selected model (2026-10-26)
+
+- Replaced the chat-first sidebar with a minimal welcome page used on first open:
+  - Download Qwen3 0.6B (382 MB) or Qwen3 1.7B (1.01 GB).
+  - Or choose an existing local `.gguf` file.
+  - One **Download and start** / **Use this model** action; the page switches to chat when QVAC has loaded the model.
+- The Windows VSIX still bundles Node.js/npm and the full QVAC runtime, but **no model**. The user explicitly chooses/downloads the model or supplies their own. This reduces the VSIX from ~1.4 GB to about 1.0 GB and keeps model/license choice with the user.
+- Added `SetupConfig` messaging, onboarding state (`localpilot.onboarded`), a minimal setup/chat webview, setup busy/error states, and a `Model` button to reopen the setup page.
+- Removed the decorative chat-first welcome content and the QuickPick model picker in favor of the compact welcome page.
+- Added an automation API `setupModel(kind, value)` to exercise the same setup path in tests.
+- Final 0.6.0 verification: typecheck, 43 unit tests, webview CSP/script check, and a full VS Code Extension Host integration run passed. The setup path started a catalog model, real chat returned `"LocalPilot integration OK."`, Explain Selected Code passed, managed stop passed, and a user-supplied local GGUF pass completed.
+- The packaged Windows VSIX now contains Node + QVAC but no model; the welcome page downloads/loads the user's choice. Windows execution and Vulkan remain **NOT TESTED**.
+
 ## 0.5.0 fully bundled Windows package (2026-10-26)
 
 - The Windows VSIX now bundles the **full QVAC CLI 0.16.0** with win32-x64 natives, **Node.js 24.21.0 + npm 11.19.0**, and the **Qwen3-0.6B Q4_0 model** (382,156,480 bytes, Apache-2.0).
@@ -271,8 +284,8 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - Repository: https://github.com/bolajiev/localpilot (public)
 - GitHub Actions workflow: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
-- The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and one-click QVAC/model setup. The `0.4.0` release adds the self-contained Windows VSIX with bundled Node/npm.
-- Release assets: `localpilot-0.5.0-win32-x64.vsix` (recommended on Windows; Node + QVAC + model bundled) and `localpilot-0.5.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and one-click setup. `0.4.0` bundled Node. `0.5.0` bundled QVAC and the model. `0.6.0` keeps QVAC/Node bundled but moves model choice to a welcome/setup page.
+- Release assets: `localpilot-0.6.0-win32-x64.vsix` (Windows: Node + QVAC; model chosen at setup) and `localpilot-0.6.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -290,9 +303,10 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Unit tests pass (43/43)
 - [x] Activity Bar sidebar view verified in extension host (0.3.0)
 - [x] Private QVAC auto-install module verified with a real 3.3 GB install
-- [x] Windows all-in-one VSIX built with bundled Node, QVAC, and model
+- [x] Windows all-in-one VSIX built with bundled Node and QVAC
 - [x] Bundled Node selection verified with PATH excluding Node
-- [x] Bundled model path verified with real inference
+- [x] Welcome/setup path with user-selected model added
+- [ ] Model pre-bundling removed intentionally; user downloads or supplies the model
 - [x] Extension Host smoke test pass (Linux)
 - [x] Real QVAC inference pass (Linux CPU)
 - [x] Existing local GGUF model load + real inference pass (Linux)
@@ -307,7 +321,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.5.0; Windows all-in-one + generic)
+- [x] GitHub Release assets published for download (0.6.0; Windows Node+QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

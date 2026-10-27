@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 - 2026-10-26
+
+- Replaced the chat-first default with a minimal welcome/setup page: download Qwen3 0.6B/1.7B or choose an existing local GGUF, then continue.
+- Wrapped guidance around the first run: choose a model, click once, and the sidebar switches to chat when ready.
+- Stopped bundling the default model in the Windows VSIX. The Windows package still bundles Node/npm and QVAC; the user downloads or supplies the model.
+- Added a platform-aware QVAC lookup so the Windows bundle is never executed on Linux.
+- Removed the previous decorative chat-first welcome content in favor of the compact setup/chat UI.
+- Added automated coverage for the setup start path.
+
 ## 0.5.0 - 2026-10-26
 
 - The Windows VSIX is now fully self-contained: Node.js 24.21.0, npm, the full QVAC CLI 0.16.0 with Windows natives, and the Qwen3-0.6B Q4_0 model are bundled.

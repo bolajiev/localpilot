@@ -25,30 +25,19 @@ class FakeEventEmitter {
   }
 }
 
-let capturedPanel;
-const panel = {
-  webview: {
-    options: {},
-    html: "",
-    onDidReceiveMessage: () => ({ dispose: () => undefined }),
-    postMessage: async () => true
-  },
+const webview = {
+  options: {},
+  html: "",
+  onDidReceiveMessage: () => ({ dispose: () => undefined }),
+  postMessage: async () => true
+};
+const view = {
+  webview,
   onDidDispose: () => ({ dispose: () => undefined }),
-  reveal: () => undefined,
-  dispose: () => undefined
+  show: () => undefined
 };
 
-const fakeVscode = {
-  EventEmitter: FakeEventEmitter,
-  ViewColumn: { Beside: 2 },
-  window: {
-    createWebviewPanel: () => {
-      capturedPanel = panel;
-      return panel;
-    }
-  }
-};
-
+const fakeVscode = { EventEmitter: FakeEventEmitter };
 const originalLoad = Module._load;
 Module._load = function load(request, parent, isMain) {
   if (request === "vscode") {
@@ -59,8 +48,8 @@ Module._load = function load(request, parent, isMain) {
 
 try {
   const { ChatPanel } = require("../out/chatView.js");
-  const chat = ChatPanel.show();
-  const html = capturedPanel.webview.html;
+  const chat = ChatPanel.fromWebviewView(view);
+  const html = webview.html;
   const scripts = [...html.matchAll(/<script nonce="[^"]+">([\s\S]*?)<\/script>/g)];
   if (scripts.length !== 1) {
     throw new Error(`Expected exactly one nonce-tagged webview script, found ${scripts.length}.`);
@@ -73,7 +62,7 @@ try {
     throw new Error("Webview HTML must not reference remote resources.");
   }
   chat.dispose();
-  console.log(`Webview check passed (${html.length} bytes, CSP, one valid script, no remote resources).`);
+  console.log(`Webview check passed (${html.length} bytes, CSP, setup/chat UI, no remote resources).`);
 } finally {
   Module._load = originalLoad;
 }

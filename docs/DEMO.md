@@ -5,9 +5,9 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
 ## Pre-demo checklist (online)
 
 1. Windows target is booted and `vulkaninfo --summary` reports Vulkan 1.4+.
-2. The Windows `win32-x64` VSIX includes Node.js 24.21.0; no separate Node install is needed.
+2. The Windows `win32-x64` VSIX includes Node.js and QVAC; no separate Node/QVAC install is needed.
 3. LocalPilot VSIX is installed and the Activity Bar icon is visible.
-4. Run **Set Up LocalPilot** once; let it install QVAC (about 3 GB) and the model.
+4. On first open, use the welcome page to download a model (Qwen3 0.6B is 382 MB) or select a local GGUF.
 5. Model cache is primed:
    - Run **LocalPilot: Start / Load Local Model** with internet.
    - Run one chat prompt and one **Explain Selected Code**.
@@ -23,7 +23,7 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
 
 ### 1. Show the sidebar and runtime version
 
-Click the LocalPilot robot icon in the Activity Bar, then run:
+Click the LocalPilot robot icon in the Activity Bar. If the welcome page appears, choose the model you prepared and continue. Then run:
 
 - **LocalPilot: Check Runtime**
 

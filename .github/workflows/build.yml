@@ -60,14 +60,11 @@ jobs:
       - name: Bundle QVAC win32 runtime
         run: bash scripts/prepare-bundled-qvac-win32.sh
 
-      - name: Bundle default model
-        run: bash scripts/prepare-bundled-model.sh
-
       - name: Package all-in-one Windows VSIX
         run: npm run package:win32
 
       - name: Verify Windows VSIX contents
         run: |
-          ls -lh localpilot-0.5.0-win32-x64.vsix
-          unzip -t localpilot-0.5.0-win32-x64.vsix > /dev/null
-          unzip -l localpilot-0.5.0-win32-x64.vsix | grep -E 'resources/node/node.exe|resources/qvac-runtime/node_modules/@qvac/cli/dist/index.js|resources/models/Qwen3-0.6B-Q4_0.gguf'
+          ls -lh localpilot-0.6.0-win32-x64.vsix
+          unzip -t localpilot-0.6.0-win32-x64.vsix > /dev/null
+          unzip -l localpilot-0.6.0-win32-x64.vsix | grep -E 'resources/node/node.exe|resources/qvac-runtime/node_modules/@qvac/cli/dist/index.js'

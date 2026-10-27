@@ -9,6 +9,11 @@ export type ChatAction =
   | { type: "startRuntime" }
   | { type: "stopRuntime" }
   | { type: "checkRuntime" }
+  | { type: "showSetup" }
+  | { type: "showChat" }
+  | { type: "browseModel" }
+  | { type: "startSetup"; kind: "catalog"; modelId: string }
+  | { type: "startSetup"; kind: "local"; modelPath: string }
   | { type: "selectModel" }
   | { type: "openSettings" };
 
@@ -22,6 +27,12 @@ export interface ChatStatus {
   owned: boolean;
 }
 
+export interface SetupConfig {
+  modelId: string;
+  modelPath: string;
+  onboarded: boolean;
+}
+
 export interface AssistantMeta {
   elapsedMs?: number;
   promptTokens?: number;
@@ -31,12 +42,13 @@ export interface AssistantMeta {
 }
 
 export class ChatPanel implements vscode.Disposable {
-  private static current: ChatPanel | undefined;
-
-  private readonly panel: vscode.WebviewPanel;
+  private readonly webview: vscode.Webview;
+  private readonly revealHost: (preserveFocus: boolean) => void;
   private readonly messageEmitter = new vscode.EventEmitter<ChatAction>();
   private readonly disposables: vscode.Disposable[] = [];
   private status?: ChatStatus;
+  private mode: "setup" | "chat" = "setup";
+  private setupConfig?: SetupConfig;
   private messageCounter = 0;
   private disposed = false;
 
@@ -46,64 +58,69 @@ export class ChatPanel implements vscode.Disposable {
 
   public readonly onDidReceiveMessage = this.messageEmitter.event;
 
-  private constructor(panel: vscode.WebviewPanel) {
-    this.panel = panel;
-    this.panel.webview.options = {
+  private constructor(
+    webview: vscode.Webview,
+    onDidDispose: vscode.Event<void>,
+    reveal: (preserveFocus: boolean) => void
+  ) {
+    this.webview = webview;
+    this.revealHost = reveal;
+    this.webview.options = {
       enableScripts: true,
       localResourceRoots: []
     };
     this.disposables.push(
-      this.panel.webview.onDidReceiveMessage((raw: unknown) => {
+      this.webview.onDidReceiveMessage((raw: unknown) => {
         const action = this.parseAction(raw);
         if (action) {
           this.messageEmitter.fire(action);
         }
       }),
-      this.panel.onDidDispose(() => this.dispose()),
+      onDidDispose(() => this.dispose()),
       this.messageEmitter
     );
-    this.panel.webview.html = this.html();
+    this.webview.html = chatHtml();
   }
 
   public static fromWebviewView(view: vscode.WebviewView): ChatPanel {
-    const fakePanel = {
-      webview: view.webview,
-      onDidDispose: view.onDidDispose,
-      reveal: (_column?: vscode.ViewColumn, preserveFocus?: boolean) => view.show(preserveFocus),
-      dispose: () => undefined
-    } as unknown as vscode.WebviewPanel;
-    return new ChatPanel(fakePanel);
-  }
-
-  public static show(): ChatPanel {
-    if (ChatPanel.current && !ChatPanel.current.disposed) {
-      ChatPanel.current.panel.reveal(undefined, false);
-      return ChatPanel.current;
-    }
-
-    const panel = vscode.window.createWebviewPanel(
-      "localpilot.chat",
-      "LocalPilot",
-      vscode.ViewColumn.Beside,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: []
-      }
+    return new ChatPanel(
+      view.webview,
+      view.onDidDispose,
+      (preserveFocus) => view.show(preserveFocus)
     );
-    ChatPanel.current = new ChatPanel(panel);
-    return ChatPanel.current;
   }
 
   public reveal(preserveFocus = true): void {
     if (!this.disposed) {
-      this.panel.reveal(undefined, preserveFocus);
+      this.revealHost(preserveFocus);
     }
   }
 
   public setStatus(status: ChatStatus): void {
     this.status = status;
     this.post({ type: "status", status });
+  }
+
+  public setMode(mode: "setup" | "chat"): void {
+    this.mode = mode;
+    this.post({ type: "mode", mode });
+  }
+
+  public setSetupConfig(config: SetupConfig): void {
+    this.setupConfig = config;
+    this.post({ type: "setupConfig", config });
+  }
+
+  public setSetupBusy(active: boolean, message: string): void {
+    this.post({ type: "setupBusy", active, message });
+  }
+
+  public setSetupError(message: string, hint?: string): void {
+    this.post({ type: "setupError", message, hint });
+  }
+
+  public setSetupLocalPath(modelPath: string): void {
+    this.post({ type: "setupLocalPath", path: modelPath });
   }
 
   public setBusy(active: boolean, label: string, canCancel: boolean): void {
@@ -150,7 +167,7 @@ export class ChatPanel implements vscode.Disposable {
 
   private post(message: Record<string, unknown>): void {
     if (!this.disposed) {
-      void this.panel.webview.postMessage(message);
+      void this.webview.postMessage(message);
     }
   }
 
@@ -158,7 +175,13 @@ export class ChatPanel implements vscode.Disposable {
     if (!raw || typeof raw !== "object") {
       return undefined;
     }
-    const record = raw as { type?: unknown; text?: unknown };
+    const record = raw as {
+      type?: unknown;
+      text?: unknown;
+      kind?: unknown;
+      modelId?: unknown;
+      modelPath?: unknown;
+    };
     if (typeof record.type !== "string") {
       return undefined;
     }
@@ -167,14 +190,29 @@ export class ChatPanel implements vscode.Disposable {
         if (this.status) {
           this.post({ type: "status", status: this.status });
         }
+        this.post({ type: "mode", mode: this.mode });
+        if (this.setupConfig) {
+          this.post({ type: "setupConfig", config: this.setupConfig });
+        }
         return { type: "ready" };
       case "send":
         return typeof record.text === "string" ? { type: "send", text: record.text } : undefined;
+      case "startSetup":
+        if (record.kind === "catalog" && typeof record.modelId === "string") {
+          return { type: "startSetup", kind: "catalog", modelId: record.modelId };
+        }
+        if (record.kind === "local" && typeof record.modelPath === "string") {
+          return { type: "startSetup", kind: "local", modelPath: record.modelPath };
+        }
+        return undefined;
       case "cancel":
       case "clear":
       case "startRuntime":
       case "stopRuntime":
       case "checkRuntime":
+      case "showSetup":
+      case "showChat":
+      case "browseModel":
       case "selectModel":
       case "openSettings":
         return { type: record.type };
@@ -188,18 +226,15 @@ export class ChatPanel implements vscode.Disposable {
       return;
     }
     this.disposed = true;
-    if (ChatPanel.current === this) {
-      ChatPanel.current = undefined;
-    }
     for (const disposable of this.disposables) {
       disposable.dispose();
     }
-    this.panel.dispose();
   }
+}
 
-  private html(): string {
-    const nonce = randomBytes(18).toString("base64url");
-    return `<!DOCTYPE html>
+function chatHtml(): string {
+  const nonce = randomBytes(18).toString("base64url");
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -208,160 +243,160 @@ export class ChatPanel implements vscode.Disposable {
 <title>LocalPilot</title>
 <style nonce="${nonce}">
   :root {
-    color-scheme: light dark;
-    --lp-bg: var(--vscode-editor-background);
-    --lp-fg: var(--vscode-editor-foreground);
-    --lp-muted: var(--vscode-descriptionForeground);
-    --lp-border: var(--vscode-panel-border, rgba(127,127,127,.28));
-    --lp-panel: var(--vscode-sideBar-background);
-    --lp-input: var(--vscode-input-background);
-    --lp-input-fg: var(--vscode-input-foreground);
-    --lp-input-border: var(--vscode-input-border, var(--lp-border));
-    --lp-accent: var(--vscode-button-background);
-    --lp-accent-fg: var(--vscode-button-foreground);
-    --lp-code: var(--vscode-textCodeBlock-background);
-    --lp-error: var(--vscode-errorForeground);
-    --lp-warning: var(--vscode-editorWarning-foreground);
-    --lp-ok: var(--vscode-testing-iconPassed, #3fb950);
+    --bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    --fg: var(--vscode-sideBar-foreground, var(--vscode-editor-foreground));
+    --muted: var(--vscode-descriptionForeground);
+    --line: var(--vscode-panel-border, rgba(127,127,127,.25));
+    --input: var(--vscode-input-background);
+    --input-fg: var(--vscode-input-foreground);
+    --accent: var(--vscode-button-background);
+    --accent-fg: var(--vscode-button-foreground);
+    --code: var(--vscode-textCodeBlock-background);
+    --error: var(--vscode-errorForeground);
+    --ok: var(--vscode-testing-iconPassed, #3fb950);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    background: var(--lp-bg);
-    color: var(--lp-fg);
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    background: var(--bg); color: var(--fg);
+    font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
+    display: flex; flex-direction: column; overflow: hidden;
   }
   header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--lp-border);
-    background: var(--lp-panel);
-    flex-wrap: wrap;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-bottom: 1px solid var(--line); flex: none;
   }
-  .brand { font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
-  .brand span { color: var(--lp-muted); font-weight: 400; }
-  .status {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--lp-border); border-radius: 999px;
-    padding: 2px 9px; font-size: 11px; color: var(--lp-muted);
-    max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lp-muted); flex: none; }
-  .status.running .dot, .status.external .dot { background: var(--lp-ok); }
-  .status.starting .dot, .status.stopping .dot { background: var(--lp-warning); animation: pulse 1.2s infinite; }
-  .status.error .dot { background: var(--lp-error); }
+  .brand { font-weight: 600; font-size: 12px; letter-spacing: .2px; white-space: nowrap; }
+  .status { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--muted); font-size: 11px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex: none; }
+  .status.running .dot, .status.external .dot { background: var(--ok); }
+  .status.starting .dot, .status.stopping .dot { background: #d7a94b; animation: pulse 1.1s infinite; }
+  .status.error .dot { background: var(--error); }
+  .status-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @keyframes pulse { 50% { opacity: .25; } }
-  .spacer { flex: 1 1 auto; }
-  .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .grow { flex: 1; }
   button {
-    font: inherit; font-size: 11px; color: var(--lp-fg);
-    background: transparent; border: 1px solid var(--lp-border);
-    border-radius: 5px; padding: 4px 9px; cursor: pointer;
+    font: inherit; font-size: 11px; color: var(--fg);
+    background: transparent; border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 8px; cursor: pointer;
   }
-  button:hover { background: var(--vscode-toolbar-hoverBackground); }
+  button:hover { border-color: var(--muted); }
   button:disabled { opacity: .45; cursor: default; }
-  button.primary { background: var(--lp-accent); color: var(--lp-accent-fg); border-color: transparent; font-weight: 600; }
-  main {
-    flex: 1 1 auto; overflow-y: auto; padding: 18px 18px 8px;
-    scroll-behavior: smooth;
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+  main { flex: 1; overflow-y: auto; }
+  /* Setup */
+  .setup { display: flex; justify-content: center; padding: 24px 16px 16px; }
+  .setup-inner { width: 100%; max-width: 380px; }
+  h1 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+  .sub { margin: 0 0 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .options { border-top: 1px solid var(--line); margin-bottom: 14px; }
+  .option {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 11px 2px; border-bottom: 1px solid var(--line); cursor: pointer;
   }
-  .welcome {
-    border: 1px solid var(--lp-border); border-radius: 10px;
-    padding: 14px 16px; margin: 0 0 16px; background: var(--lp-panel);
-    color: var(--lp-muted); line-height: 1.5; max-width: 760px;
+  .option input { margin: 2px 0 0; accent-color: var(--vscode-focusBorder); }
+  .option span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .option strong { font-weight: 500; font-size: 12px; }
+  .option small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+  .option.disabled { opacity: .55; cursor: default; }
+  .setup-actions { display: flex; flex-direction: column; gap: 8px; }
+  .setup-actions button { padding: 6px 10px; font-size: 12px; }
+  .setup-actions button.primary { padding: 7px 10px; }
+  .setup-note { color: var(--muted); font-size: 10px; line-height: 1.45; margin: 14px 0 0; }
+  .setup-error {
+    color: var(--error); font-size: 11px; line-height: 1.4;
+    margin: 0 0 10px; white-space: pre-wrap;
   }
-  .welcome strong { color: var(--lp-fg); }
-  .msg { margin: 0 0 16px; display: flex; flex-direction: column; gap: 5px; max-width: 880px; }
-  .msg.user { align-items: flex-end; margin-left: auto; }
-  .who { font-size: 10px; letter-spacing: .6px; text-transform: uppercase; color: var(--lp-muted); padding: 0 4px; }
-  .bubble {
-    border: 1px solid var(--lp-border); border-radius: 10px;
-    padding: 10px 12px; line-height: 1.55; white-space: normal;
-    overflow-wrap: anywhere; width: fit-content; max-width: 100%;
+  .setup-busy { color: var(--muted); font-size: 11px; margin: 0 0 10px; }
+  .link { background: none; border: 0; padding: 0; color: var(--vscode-textLink-foreground); cursor: pointer; font-size: 11px; }
+  /* Chat */
+  .chat { padding: 14px 12px 6px; }
+  .msg { margin: 0 0 14px; }
+  .msg .who { color: var(--muted); font-size: 10px; margin-bottom: 3px; }
+  .msg.user .body { color: var(--fg); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.assistant .body { border-left: 2px solid var(--line); padding-left: 9px; line-height: 1.5; overflow-wrap: anywhere; }
+  .msg.info .body, .msg.note .body, .msg.error .body { color: var(--muted); font-size: 11px; white-space: pre-wrap; }
+  .msg.error .body { color: var(--error); }
+  .msg .meta { color: var(--muted); font-size: 10px; margin-top: 4px; }
+  .body p { margin: 0 0 .6em; white-space: pre-wrap; }
+  .body p:last-child { margin-bottom: 0; }
+  .body pre {
+    background: var(--code); border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px; overflow-x: auto; margin: .6em 0;
   }
-  .msg.user .bubble { background: var(--vscode-input-background); }
-  .msg.assistant .bubble { background: var(--lp-panel); }
-  .msg.error .bubble { border-color: var(--lp-error); color: var(--lp-error); background: transparent; }
-  .msg.note .bubble, .msg.info .bubble {
-    width: 100%; max-width: 100%; background: transparent; border-style: dashed;
-    color: var(--lp-muted); font-size: 12px; white-space: pre-wrap;
-  }
-  .bubble p, .bubble .para { margin: 0 0 .65em; white-space: pre-wrap; }
-  .bubble .para:last-child { margin-bottom: 0; }
-  .bubble pre {
-    margin: .7em 0; background: var(--lp-code); border-radius: 6px;
-    padding: 9px 10px; overflow-x: auto; border: 1px solid var(--lp-border);
-  }
-  .bubble code { font-family: var(--vscode-editor-font-family); font-size: .94em; }
-  .bubble p code, .bubble .para code {
-    background: var(--lp-code); border-radius: 3px; padding: 1px 4px;
-  }
-  .meta { font-size: 10px; color: var(--lp-muted); padding: 0 4px; }
-  .streaming .bubble::after {
-    content: ""; display: inline-block; width: 6px; height: 14px;
-    background: var(--lp-fg); opacity: .55; margin-left: 3px;
+  .body code { font-family: var(--vscode-editor-font-family); font-size: .94em; }
+  .body :not(pre) > code { background: var(--code); padding: 1px 3px; border-radius: 2px; }
+  .streaming .body::after {
+    content: ""; display: inline-block; width: 5px; height: 12px;
+    background: var(--fg); opacity: .5; margin-left: 3px;
     vertical-align: text-bottom; animation: blink 1s steps(1) infinite;
   }
   @keyframes blink { 50% { opacity: 0; } }
-  .hint { display: block; margin-top: 6px; color: var(--lp-muted); font-size: 11px; }
   footer {
-    border-top: 1px solid var(--lp-border); padding: 12px 16px;
-    background: var(--lp-panel); display: flex; flex-direction: column; gap: 8px;
+    flex: none; border-top: 1px solid var(--line);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 5px;
   }
-  .composer { display: flex; gap: 8px; align-items: flex-end; }
+  .composer { display: flex; gap: 6px; align-items: flex-end; }
   textarea {
-    flex: 1 1 auto; resize: none; min-height: 44px; max-height: 180px;
-    background: var(--lp-input); color: var(--lp-input-fg);
-    border: 1px solid var(--lp-input-border); border-radius: 7px;
-    padding: 10px 11px; font: inherit; line-height: 1.4;
+    flex: 1; resize: none; min-height: 34px; max-height: 140px;
+    background: var(--input); color: var(--input-fg);
+    border: 1px solid var(--vscode-input-border, var(--line));
+    border-radius: 5px; padding: 7px 8px; font: inherit; line-height: 1.35;
     outline: none;
   }
   textarea:focus { border-color: var(--vscode-focusBorder); }
-  .footer-row { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--lp-muted); }
-  .busy-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .grow { flex: 1 1 auto; }
-  @media (max-width: 560px) {
-    header { padding: 8px 12px; }
-    .brand span { display: none; }
-    main { padding: 14px 12px 6px; }
-    footer { padding: 10px 12px; }
-  }
+  .footer-row { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+  .busy-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">LocalPilot <span>local QVAC assistant</span></div>
-  <div id="status" class="status" title="">
-    <span class="dot"></span><span id="status-label">Checking runtime…</span>
-  </div>
-  <div class="spacer"></div>
-  <div class="header-actions">
-    <button id="check" title="Check QVAC CLI, server, and model cache">Check</button>
-    <button id="start" class="primary" title="Start QVAC and load the model">Start</button>
-    <button id="stop" title="Unload the model and stop a LocalPilot-managed server">Stop</button>
-    <button id="model" title="Choose a catalog model or an existing local GGUF file">Model</button>
-    <button id="settings" title="Open LocalPilot settings">Settings</button>
-  </div>
+  <div class="brand">LocalPilot</div>
+  <div id="status" class="status" title=""><span class="dot"></span><span id="status-label" class="status-label">Starting…</span></div>
+  <div class="grow"></div>
+  <button id="start" hidden>Start</button>
+  <button id="stop" hidden>Stop</button>
+  <button id="model" title="Change model">Model</button>
+  <button id="settings" title="Settings">Settings</button>
 </header>
-<main id="messages" aria-live="polite">
-  <div class="welcome" id="welcome">
-    <strong>Private by default.</strong> Prompts and selected code go only to the QVAC runtime on this machine.
-    LocalPilot has no cloud fallback and sends no telemetry. If QVAC is missing, Start offers a one-click
-    local install of the runtime; the first catalog-model start also needs internet. Later runs, and models
-    you already have on disk, can work offline.
+
+<main id="setup" class="setup">
+  <div class="setup-inner">
+    <h1>Choose a model</h1>
+    <p class="sub">LocalPilot runs the model on this machine. Download one now, or use a GGUF file you already have.</p>
+    <div class="options">
+      <label class="option">
+        <input type="radio" name="model" value="QWEN3_600M_INST_Q4" checked>
+        <span><strong>Qwen3 0.6B</strong><small>382 MB · recommended</small></span>
+      </label>
+      <label class="option">
+        <input type="radio" name="model" value="QWEN3_1_7B_INST_Q4">
+        <span><strong>Qwen3 1.7B</strong><small>1.01 GB · slower, more capable</small></span>
+      </label>
+      <label class="option">
+        <input type="radio" name="model" value="local">
+        <span><strong>Use a local GGUF</strong><small id="local-path">No file selected</small></span>
+      </label>
+    </div>
+    <div id="setup-error" class="setup-error" hidden></div>
+    <div id="setup-busy" class="setup-busy" hidden></div>
+    <div class="setup-actions">
+      <button id="browse" hidden>Browse for .gguf…</button>
+      <button id="setup-start" class="primary">Download and start</button>
+      <button id="back" class="link" hidden>Back to chat</button>
+    </div>
+    <p class="setup-note">No cloud. No telemetry. Prompts stay on this machine. Internet is needed only for the model download.</p>
   </div>
 </main>
-<footer>
+
+<main id="chat" class="chat" hidden></main>
+
+<footer id="composer" hidden>
   <div class="composer">
-    <textarea id="input" rows="2" placeholder="Ask about your code… (Enter to send, Shift+Enter for a new line)" aria-label="Message"></textarea>
+    <textarea id="input" rows="1" placeholder="Ask about your code…" aria-label="Message"></textarea>
     <button id="send" class="primary">Send</button>
-    <button id="cancel" style="display:none">Stop</button>
+    <button id="cancel" hidden>Stop</button>
   </div>
   <div class="footer-row">
     <span id="model-label"></span>
@@ -369,32 +404,58 @@ export class ChatPanel implements vscode.Disposable {
     <span id="busy-label" class="busy-label"></span>
   </div>
 </footer>
+
 <script nonce="${nonce}">
 (function () {
   const vscode = acquireVsCodeApi();
-  const messages = document.getElementById('messages');
-  const welcome = document.getElementById('welcome');
+  const setup = document.getElementById('setup');
+  const chat = document.getElementById('chat');
+  const composer = document.getElementById('composer');
   const input = document.getElementById('input');
   const send = document.getElementById('send');
   const cancel = document.getElementById('cancel');
+  const start = document.getElementById('start');
+  const stop = document.getElementById('stop');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
   const busyLabel = document.getElementById('busy-label');
   const modelLabel = document.getElementById('model-label');
+  const setupError = document.getElementById('setup-error');
+  const setupBusy = document.getElementById('setup-busy');
+  const setupStart = document.getElementById('setup-start');
+  const browse = document.getElementById('browse');
+  const back = document.getElementById('back');
+  const localPathLabel = document.getElementById('local-path');
+  const radios = Array.from(document.querySelectorAll('input[name="model"]'));
   const assistants = new Map();
   let busy = false;
   let canCancel = false;
+  let mode = 'setup';
+  let setupActive = false;
+  let setupRunning = false;
+  let onboarded = false;
+  let localPath = '';
 
   function post(message) { vscode.postMessage(message); }
-
-  function nearBottom() {
-    return messages.scrollHeight - messages.scrollTop - messages.clientHeight < 120;
+  function selectedValue() { const r = radios.find((x) => x.checked); return r ? r.value : 'QWEN3_600M_INST_Q4'; }
+  function isLocal() { return selectedValue() === 'local'; }
+  function updateSetup() {
+    const local = isLocal();
+    browse.hidden = !local;
+    back.hidden = !onboarded;
+    start.hidden = setupActive || mode === 'setup';
+    stop.hidden = !setupActive;
+    setupStart.disabled = setupRunning || (local && !localPath);
+    setupStart.textContent = setupRunning
+      ? 'Working…'
+      : local
+        ? 'Use this model'
+        : 'Download and start';
+    radiodisable();
   }
-  function scroll(force) {
-    if (force || nearBottom()) {
-      requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
-    }
-  }
+  function radiodisable() { for (const r of radios) r.disabled = setupRunning; }
+  function nearBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 100; }
+  function scroll(force) { if (force || nearBottom()) requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; }); }
 
   function inline(parent, text) {
     const parts = text.split(/(\`[^\`\\n]+\`)/g);
@@ -409,28 +470,21 @@ export class ChatPanel implements vscode.Disposable {
       }
     }
   }
-
   function render(body, text) {
     body.textContent = '';
     const sections = text.split(/\`\`\`/);
     sections.forEach((section, index) => {
       if (index % 2 === 1) {
-        let language = '';
         let code = section;
-        const newline = section.indexOf('\\n');
-        if (newline >= 0) {
-          language = section.slice(0, newline).trim();
-          code = section.slice(newline + 1);
-        }
+        const nl = section.indexOf('\\n');
+        if (nl >= 0) code = section.slice(nl + 1);
         const pre = document.createElement('pre');
-        if (language) pre.setAttribute('data-language', language);
         const codeEl = document.createElement('code');
         codeEl.textContent = code.replace(/\\n$/, '');
         pre.appendChild(codeEl);
         body.appendChild(pre);
       } else if (section) {
-        const paragraphs = section.split(/\\n{2,}/);
-        for (const paragraph of paragraphs) {
+        for (const paragraph of section.split(/\\n{2,}/)) {
           if (!paragraph.trim()) continue;
           const p = document.createElement('p');
           inline(p, paragraph.replace(/^\\n+|\\n+$/g, ''));
@@ -439,66 +493,119 @@ export class ChatPanel implements vscode.Disposable {
       }
     });
   }
-
   function addMessage(kind, label, text) {
     const wrap = document.createElement('div');
     wrap.className = 'msg ' + kind;
-    if (kind !== 'info' && kind !== 'note') {
+    if (label) {
       const who = document.createElement('div');
       who.className = 'who';
       who.textContent = label;
       wrap.appendChild(who);
     }
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    if (kind === 'assistant' || kind === 'user') render(bubble, text);
-    else bubble.textContent = text;
-    wrap.appendChild(bubble);
-    messages.appendChild(wrap);
+    const body = document.createElement('div');
+    body.className = 'body';
+    if (kind === 'assistant' || kind === 'user') render(body, text);
+    else body.textContent = text;
+    wrap.appendChild(body);
+    chat.appendChild(wrap);
     scroll(true);
-    return { wrap, bubble };
+    return { wrap, body };
   }
-
   function setBusy(active, label) {
     busy = active;
     send.disabled = active;
-    cancel.style.display = active && canCancel ? '' : 'none';
-    busyLabel.textContent = active ? label || 'Working locally…' : '';
+    cancel.hidden = !(active && canCancel);
+    busyLabel.textContent = active ? label || 'Working…' : '';
+  }
+  function showError(message, hint) {
+    setupError.hidden = false;
+    setupError.textContent = hint ? message + '\\n' + hint : message;
   }
 
   window.addEventListener('message', (event) => {
-    const message = event.data;
-    if (!message || typeof message.type !== 'string') return;
-    switch (message.type) {
+    const m = event.data;
+    if (!m || typeof m.type !== 'string') return;
+    switch (m.type) {
       case 'status': {
-        const s = message.status;
+        const s = m.status;
         status.className = 'status ' + s.state;
         status.title = s.detail || '';
         statusLabel.textContent = s.label;
-        modelLabel.textContent = s.modelAlias ? s.modelAlias + ' · ' + s.endpoint.replace(/^https?:\\/\\//, '') : '';
+        modelLabel.textContent = s.modelAlias ? s.modelAlias : '';
+        const active = s.state === 'running' || s.state === 'external';
+        setupActive = active;
+        updateSetup();
+        break;
+      }
+      case 'mode': {
+        mode = m.mode === 'setup' ? 'setup' : 'chat';
+        setup.hidden = mode !== 'setup';
+        chat.hidden = mode !== 'chat';
+        composer.hidden = mode !== 'chat';
+        if (mode === 'chat') { setTimeout(() => input.focus(), 0); }
+        updateSetup();
+        break;
+      }
+      case 'setupConfig': {
+        const c = m.config;
+        onboarded = Boolean(c.onboarded);
+        localPath = c.modelPath || '';
+        if (c.modelPath) {
+          const r = radios.find((x) => x.value === 'local');
+          if (r) r.checked = true;
+          localPathLabel.textContent = c.modelPath;
+        } else {
+          const r = radios.find((x) => x.value === c.modelId);
+          if (r) r.checked = true;
+          localPathLabel.textContent = 'No file selected';
+        }
+        setupError.hidden = true;
+        updateSetup();
+        break;
+      }
+      case 'setupLocalPath': {
+        localPath = m.path || '';
+        localPathLabel.textContent = localPath || 'No file selected';
+        const r = radios.find((x) => x.value === 'local');
+        if (r) r.checked = true;
+        setupError.hidden = true;
+        updateSetup();
+        break;
+      }
+      case 'setupBusy': {
+        setupRunning = Boolean(m.active);
+        setupBusy.hidden = !setupRunning;
+        setupBusy.textContent = m.message || '';
+        updateSetup();
+        break;
+      }
+      case 'setupError': {
+        if (!m.message) {
+          setupError.hidden = true;
+          setupError.textContent = '';
+        } else {
+          showError(m.message, m.hint);
+        }
+        setupRunning = false;
+        setupBusy.hidden = true;
+        updateSetup();
         break;
       }
       case 'busy': {
-        canCancel = Boolean(message.canCancel);
-        setBusy(Boolean(message.active), message.label);
+        canCancel = Boolean(m.canCancel);
+        setBusy(Boolean(m.active), m.label);
         break;
       }
-      case 'user': {
-        addMessage('user', 'You', message.text);
-        break;
-      }
+      case 'user': addMessage('user', 'You', m.text); break;
       case 'info':
-      case 'note': {
-        addMessage(message.type, '', message.text);
-        break;
-      }
+      case 'note': addMessage(m.type, '', m.text); break;
       case 'error': {
-        const entry = addMessage('error', 'LocalPilot error', message.message);
-        if (message.hint) {
-          const hint = document.createElement('span');
-          hint.className = 'hint';
-          hint.textContent = message.hint;
-          entry.bubble.appendChild(hint);
+        const e = addMessage('error', 'Error', m.message);
+        if (m.hint) {
+          const hint = document.createElement('div');
+          hint.className = 'meta';
+          hint.textContent = m.hint;
+          e.wrap.appendChild(hint);
         }
         scroll(true);
         break;
@@ -507,53 +614,44 @@ export class ChatPanel implements vscode.Disposable {
         const entry = addMessage('assistant streaming', 'LocalPilot', '');
         const meta = document.createElement('div');
         meta.className = 'meta';
-        meta.textContent = 'thinking locally…';
+        meta.textContent = 'thinking…';
         entry.wrap.appendChild(meta);
-        assistants.set(message.id, { ...entry, meta, text: '' });
+        assistants.set(m.id, { ...entry, meta, text: '' });
         scroll(true);
         break;
       }
       case 'assistantDelta': {
-        const assistant = assistants.get(message.id);
-        if (!assistant) break;
-        assistant.text += message.text || '';
-        render(assistant.bubble, assistant.text);
+        const a = assistants.get(m.id);
+        if (!a) break;
+        a.text += m.text || '';
+        render(a.body, a.text);
         scroll(false);
         break;
       }
       case 'assistantEnd': {
-        const assistant = assistants.get(message.id);
-        if (!assistant) break;
-        assistant.wrap.classList.remove('streaming');
-        const meta = message.meta || {};
+        const a = assistants.get(m.id);
+        if (!a) break;
+        a.wrap.classList.remove('streaming');
+        const meta = m.meta || {};
         const bits = [];
         if (meta.elapsedMs) bits.push((meta.elapsedMs / 1000).toFixed(1) + 's');
         if (meta.completionTokens) bits.push(meta.completionTokens + ' tokens');
-        if (meta.finishReason === 'length') bits.push('truncated at max tokens');
+        if (meta.finishReason === 'length') bits.push('truncated');
         if (meta.note) bits.push(meta.note);
-        assistant.meta.textContent = bits.join(' · ');
-        assistants.delete(message.id);
+        a.meta.textContent = bits.join(' · ');
+        assistants.delete(m.id);
         scroll(false);
         break;
       }
-      case 'restoreInput': {
-        input.value = message.text || '';
+      case 'restoreInput':
+        input.value = m.text || '';
         input.dispatchEvent(new Event('input'));
         input.focus();
         break;
-      }
-      case 'clear': {
-        messages.textContent = '';
+      case 'clear':
+        chat.textContent = '';
         assistants.clear();
-        const note = document.createElement('div');
-        note.className = 'msg info';
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.textContent = 'Conversation cleared. Prompts are never written to disk by LocalPilot.';
-        note.appendChild(bubble);
-        messages.appendChild(note);
         break;
-      }
     }
   });
 
@@ -561,34 +659,42 @@ export class ChatPanel implements vscode.Disposable {
     const text = input.value;
     if (!text.trim() || busy) return;
     input.value = '';
+    input.style.height = 'auto';
     post({ type: 'send', text });
   }
+  function beginSetup() {
+    setupError.hidden = true;
+    if (isLocal()) {
+      if (!localPath) { showError('Choose a .gguf file first.'); return; }
+      post({ type: 'startSetup', kind: 'local', modelPath: localPath });
+    } else {
+      post({ type: 'startSetup', kind: 'catalog', modelId: selectedValue() });
+    }
+  }
 
+  for (const r of radios) r.addEventListener('change', updateSetup);
+  browse.addEventListener('click', () => post({ type: 'browseModel' }));
+  setupStart.addEventListener('click', beginSetup);
+  back.addEventListener('click', () => post({ type: 'showChat' }));
+  document.getElementById('model').addEventListener('click', () => post({ type: 'showSetup' }));
+  document.getElementById('settings').addEventListener('click', () => post({ type: 'openSettings' }));
+  start.addEventListener('click', () => post({ type: 'startRuntime' }));
+  stop.addEventListener('click', () => post({ type: 'stopRuntime' }));
   send.addEventListener('click', submit);
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      submit();
-    }
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); }
   });
   input.addEventListener('input', () => {
     input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
   });
   cancel.addEventListener('click', () => post({ type: 'cancel' }));
-  document.getElementById('start').addEventListener('click', () => post({ type: 'startRuntime' }));
-  document.getElementById('stop').addEventListener('click', () => post({ type: 'stopRuntime' }));
-  document.getElementById('check').addEventListener('click', () => post({ type: 'checkRuntime' }));
-  document.getElementById('model').addEventListener('click', () => post({ type: 'selectModel' }));
-  document.getElementById('settings').addEventListener('click', () => post({ type: 'openSettings' }));
+  updateSetup();
   post({ type: 'ready' });
-  input.focus();
-  if (welcome) welcome.scrollIntoView({ block: 'nearest' });
 })();
 </script>
 </body>
 </html>`;
-  }
 }
 
 export class LocalPilotChatViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {

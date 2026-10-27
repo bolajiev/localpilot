@@ -3,7 +3,8 @@ import {
   ChatAction,
   ChatPanel,
   ChatStatus,
-  LocalPilotChatViewProvider
+  LocalPilotChatViewProvider,
+  SetupConfig
 } from "./chatView";
 import { LocalPilotError, toFriendlyError } from "./errors";
 import { ChatResult, QvacClient } from "./qvacClient";
@@ -22,6 +23,7 @@ import {
   RuntimeStatus,
   formatCheckReport
 } from "./runtimeManager";
+import { assertLocalModelFile } from "./runtimeConfig";
 import { readSettings } from "./settings";
 
 let outputChannel: vscode.OutputChannel | undefined;
@@ -33,13 +35,9 @@ let requestAbort: AbortController | undefined;
 let busy = false;
 let suppressSettingsWarning = false;
 let lastError: LocalPilotError | undefined;
+let extensionContext: vscode.ExtensionContext | undefined;
 
-const DEFAULT_MODEL_ID = "QWEN3_600M_INST_Q4";
-
-interface ModelPickItem extends vscode.QuickPickItem {
-  action?: "catalog" | "local" | "custom" | "reset";
-  modelId?: string;
-}
+const ONBOARDING_KEY = "localpilot.onboarded";
 
 export interface LocalPilotApi {
   version: string;
@@ -51,6 +49,7 @@ export interface LocalPilotApi {
   getLastResponse(): string | undefined;
   getLastError(): { code: string; message: string; hint?: string } | undefined;
   sendChat(text: string): Promise<void>;
+  setupModel(kind: "catalog" | "local", value: string): Promise<void>;
 }
 
 function log(message: string): void {
@@ -396,6 +395,14 @@ async function explainSelection(): Promise<void> {
     return;
   }
 
+  if (!isOnboarded() && !runtimeIsActive()) {
+    await openSetupPage();
+    void vscode.window.showInformationMessage(
+      "Choose a model to set up LocalPilot, then run Explain Selected Code again."
+    );
+    return;
+  }
+
   if (busy) {
     const choice = await vscode.window.showWarningMessage(
       "LocalPilot is already generating a response.",
@@ -445,136 +452,131 @@ async function updateLocalSetting(key: string, value: unknown): Promise<void> {
     .update(key, value, vscode.ConfigurationTarget.Global);
 }
 
-async function offerRuntimeRestart(): Promise<void> {
-  const state = runtime().getStatus().state;
-  if (state === "running" || state === "external" || state === "starting") {
-    const choice = await vscode.window.showInformationMessage(
-      "Model configuration changed. Restart the QVAC runtime to load the new model.",
-      "Restart Now",
-      "Later"
-    );
-    if (choice === "Restart Now") {
-      await stopRuntimeInteractive(true);
-      await startRuntimeInteractive(false);
-    }
-    return;
-  }
-  void vscode.window.showInformationMessage(
-    "Model configured. Run LocalPilot: Start / Load Local Model to load it."
-  );
-}
-
-async function selectModel(): Promise<void> {
-  const settings = readSettings();
-  const items: ModelPickItem[] = [
-    {
-      label: "Qwen3 0.6B (Q4)",
-      description: "≈ 382 MB download · fastest · tested default",
-      detail: "QWEN3_600M_INST_Q4 — recommended for CPU-first 16 GB machines",
-      action: "catalog",
-      modelId: "QWEN3_600M_INST_Q4"
-    },
-    {
-      label: "Qwen3 1.7B (Q4)",
-      description: "≈ 1.01 GB download · slower but more capable",
-      detail: "QWEN3_1_7B_INST_Q4 — still CPU-friendly, needs more RAM",
-      action: "catalog",
-      modelId: "QWEN3_1_7B_INST_Q4"
-    },
-    {
-      label: "Qwen3 4B (Q4_K_M)",
-      description: "≈ 2.50 GB download · much slower on CPU",
-      detail: "QWEN3_4B_INST_Q4_K_M — use only if you have RAM and patience",
-      action: "catalog",
-      modelId: "QWEN3_4B_INST_Q4_K_M"
-    },
-    {
-      label: "",
-      kind: vscode.QuickPickItemKind.Separator
-    },
-    {
-      label: "Use an existing local GGUF file…",
-      description: settings.modelPath
-        ? `Current: ${settings.modelPath}`
-        : "No download · load a llama.cpp-compatible .gguf model from disk",
-      action: "local"
-    },
-    {
-      label: "Enter a QVAC catalog model ID…",
-      description: "For advanced users: use another catalog constant",
-      action: "custom"
-    },
-    {
-      label: "Reset to the default Qwen3 0.6B model",
-      description: "Use the tested catalog default and clear the local path",
-      action: "reset"
-    }
-  ];
-
-  const current = settings.modelPath ? `local: ${settings.modelPath}` : settings.modelId;
-  const picked = await vscode.window.showQuickPick(items, {
-    title: "LocalPilot model source",
-    placeHolder: `Current: ${current}. Downloads happen on Start / Load Local Model.`
-  });
-  if (!picked?.action) {
-    return;
-  }
-
-  let nextModelId = settings.modelId;
-  let nextModelPath = settings.modelPath;
+async function setModelSettings(modelId: string, modelPath: string): Promise<void> {
   suppressSettingsWarning = true;
   try {
-    switch (picked.action) {
-      case "catalog":
-      case "reset": {
-        nextModelId =
-          picked.action === "reset" ? DEFAULT_MODEL_ID : picked.modelId ?? DEFAULT_MODEL_ID;
-        nextModelPath = "";
-        break;
-      }
-      case "local": {
-        const selected = await vscode.window.showOpenDialog({
-          canSelectFiles: true,
-          canSelectFolders: false,
-          canSelectMany: false,
-          title: "Select a GGUF chat model",
-          filters: { "GGUF model": ["gguf"] }
-        });
-        if (!selected || selected.length === 0) {
-          return;
-        }
-        nextModelPath = selected[0].fsPath;
-        break;
-      }
-      case "custom": {
-        const value = await vscode.window.showInputBox({
-          title: "QVAC catalog model ID",
-          prompt: "Example: QWEN3_600M_INST_Q4",
-          value: settings.modelPath ? DEFAULT_MODEL_ID : settings.modelId,
-          validateInput: (candidate) =>
-            /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(candidate.trim())
-              ? undefined
-              : "Use letters, digits, dots, underscores, or hyphens."
-        });
-        if (!value?.trim()) {
-          return;
-        }
-        nextModelId = value.trim();
-        nextModelPath = "";
-        break;
-      }
-    }
-
-    await updateLocalSetting("modelId", nextModelId);
-    await updateLocalSetting("modelPath", nextModelPath);
-    log(`Model configured: id=${nextModelId} localPath=${nextModelPath ? "set" : "none"}`);
+    await updateLocalSetting("modelId", modelId);
+    await updateLocalSetting("modelPath", modelPath);
+    log(`Model configured: id=${modelId} localPath=${modelPath ? "set" : "none"}`);
   } finally {
     setTimeout(() => {
       suppressSettingsWarning = false;
     }, 600);
   }
+}
 
-  await offerRuntimeRestart();
+function isOnboarded(): boolean {
+  return extensionContext?.globalState.get<boolean>(ONBOARDING_KEY, false) ?? false;
+}
+
+function runtimeIsActive(): boolean {
+  const state = runtime().getStatus().state;
+  return state === "running" || state === "external" || state === "starting";
+}
+
+function currentSetupConfig(): SetupConfig {
+  const settings = readSettings();
+  return {
+    modelId: settings.modelId,
+    modelPath: settings.modelPath,
+    onboarded: isOnboarded()
+  };
+}
+
+function initialMode(): "setup" | "chat" {
+  return !isOnboarded() && !runtimeIsActive() ? "setup" : "chat";
+}
+
+async function openSetupPage(): Promise<ChatPanel> {
+  const surface = await showChatSurface(false);
+  surface.setSetupConfig(currentSetupConfig());
+  surface.setSetupError("");
+  surface.setSetupBusy(false, "");
+  surface.setMode("setup");
+  return surface;
+}
+
+async function showChatPage(): Promise<ChatPanel> {
+  if (!isOnboarded() && !runtimeIsActive()) {
+    return openSetupPage();
+  }
+  const surface = await showChatSurface(false);
+  surface.setMode("chat");
+  return surface;
+}
+
+async function browseModelForSetup(): Promise<void> {
+  const surface = panel();
+  if (!surface) {
+    return;
+  }
+  const selected = await vscode.window.showOpenDialog({
+    canSelectFiles: true,
+    canSelectFolders: false,
+    canSelectMany: false,
+    title: "Select a GGUF chat model",
+    filters: { "GGUF model": ["gguf"] }
+  });
+  if (selected?.[0]) {
+    surface.setSetupLocalPath(selected[0].fsPath);
+  }
+}
+
+async function startSetup(
+  action: Extract<ChatAction, { type: "startSetup" }>
+): Promise<void> {
+  const surface = panel() ?? (await showChatSurface(false));
+  surface.setMode("setup");
+  surface.setSetupError("");
+  surface.setSetupBusy(
+    true,
+    action.kind === "local" ? "Loading the local model…" : "Downloading the model…"
+  );
+  lastError = undefined;
+
+  try {
+    if (action.kind === "catalog") {
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(action.modelId)) {
+        throw new LocalPilotError("model-missing", "That model ID is not valid.");
+      }
+      await setModelSettings(action.modelId, "");
+    } else {
+      await assertLocalModelFile(action.modelPath);
+      await setModelSettings(readSettings().modelId, action.modelPath);
+    }
+
+    if (runtime().getStatus().state === "running") {
+      await stopRuntimeInteractive(true);
+    }
+
+    const ready = await startRuntimeInteractive(true);
+    if (!ready) {
+      surface.setSetupBusy(false, "");
+      const failure = lastError as LocalPilotError | undefined;
+      surface.setSetupError(
+        failure?.message ?? "Setup did not finish.",
+        failure?.hint
+      );
+      return;
+    }
+
+    await extensionContext?.globalState.update(ONBOARDING_KEY, true);
+    surface.setSetupBusy(false, "");
+    surface.setSetupConfig(currentSetupConfig());
+    surface.setMode("chat");
+    surface.addNote("Model ready. Ask a question below.");
+    void vscode.commands.executeCommand("localpilot.chatView.focus");
+  } catch (error) {
+    const friendly = toFriendlyError(error);
+    lastError = friendly;
+    surface.setSetupBusy(false, "");
+    surface.setSetupError(friendly.message, friendly.hint);
+  } finally {
+    surface.setSetupBusy(false, "");
+    setTimeout(() => {
+      suppressSettingsWarning = false;
+    }, 600);
+  }
 }
 
 async function promptForNodeDownload(message: string, hint?: string): Promise<void> {
@@ -748,13 +750,6 @@ async function startRuntimeInteractive(fromPanel = false): Promise<boolean> {
   }
 }
 
-async function setupLocalPilot(): Promise<void> {
-  const ready = await startRuntimeInteractive(false);
-  if (ready) {
-    await openChat();
-  }
-}
-
 async function stopRuntimeInteractive(fromPanel = false): Promise<void> {
   if (requestAbort) {
     requestAbort.abort();
@@ -868,8 +863,8 @@ async function showStatusMenu(): Promise<void> {
       detail: `${status.modelAlias} · ${status.endpoint}`
     },
     {
-      label: "$(cloud-download) Set Up LocalPilot (QVAC + Model)",
-      description: "Install the QVAC runtime if missing, then download and load the model",
+      label: "$(cloud-download) Set Up / Choose Model",
+      description: "Open the welcome page to download a model or load a local GGUF",
       command: "localpilot.setup"
     },
     {
@@ -945,8 +940,18 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
       case "checkRuntime":
         await checkRuntime(true);
         break;
+      case "showSetup":
       case "selectModel":
-        await selectModel();
+        await openSetupPage();
+        break;
+      case "showChat":
+        await showChatPage();
+        break;
+      case "browseModel":
+        await browseModelForSetup();
+        break;
+      case "startSetup":
+        await startSetup(action);
         break;
       case "openSettings":
         openSettings();
@@ -955,6 +960,8 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
         const view = panel();
         if (view) {
           view.setStatus(statusToChat(runtime().getStatus()));
+          view.setSetupConfig(currentSetupConfig());
+          view.setMode(initialMode());
         }
         break;
       }
@@ -965,12 +972,14 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
 }
 
 async function openChat(): Promise<void> {
-  await showChatSurface(false);
+  await showChatPage();
   try {
     const status = await runtime().refreshStatus();
     const view = panel();
     if (view) {
       view.setStatus(statusToChat(status));
+      view.setSetupConfig(currentSetupConfig());
+      view.setMode(initialMode());
     }
   } catch (error) {
     reportError(toFriendlyError(error), true);
@@ -982,12 +991,12 @@ function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(vscode.commands.registerCommand(command, callback));
   };
 
-  register("localpilot.setup", () => setupLocalPilot());
+  register("localpilot.setup", () => openSetupPage());
   register("localpilot.checkRuntime", () => checkRuntime(false));
   register("localpilot.startRuntime", () => startRuntimeInteractive(false));
   register("localpilot.selectModel", async () => {
     try {
-      await selectModel();
+      await openSetupPage();
     } catch (error) {
       reportError(toFriendlyError(error), false);
     }
@@ -1001,6 +1010,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
 }
 
 export function activate(context: vscode.ExtensionContext): LocalPilotApi {
+  extensionContext = context;
   outputChannel = vscode.window.createOutputChannel("LocalPilot");
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
   statusBar.command = "localpilot.statusMenu";
@@ -1022,6 +1032,8 @@ export function activate(context: vscode.ExtensionContext): LocalPilotApi {
     }),
     chatProvider.onDidResolveSurface((surface) => {
       surface.setStatus(statusToChat(runtime().getStatus()));
+      surface.setSetupConfig(currentSetupConfig());
+      surface.setMode(initialMode());
     })
   );
   context.subscriptions.push(manager.onDidChangeStatus(handleStatusChange));
@@ -1071,7 +1083,13 @@ export function activate(context: vscode.ExtensionContext): LocalPilotApi {
       lastError
         ? { code: lastError.code, message: lastError.message, hint: lastError.hint }
         : undefined,
-    sendChat: (text: string) => handlePanelAction({ type: "send", text })
+    sendChat: (text: string) => handlePanelAction({ type: "send", text }),
+    setupModel: (kind, value) =>
+      startSetup(
+        kind === "catalog"
+          ? { type: "startSetup", kind: "catalog", modelId: value }
+          : { type: "startSetup", kind: "local", modelPath: value }
+      )
   };
 }
 

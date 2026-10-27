@@ -109,9 +109,9 @@ export async function run(): Promise<void> {
 
     await api.stopRuntime();
     await updateSetting("maxOutputTokens", 16);
-    log("starting the managed runtime for real inference");
+    log("starting the managed runtime through the welcome/setup path");
     const startTime = Date.now();
-    await api.startRuntime();
+    await api.setupModel("catalog", "QWEN3_600M_INST_Q4");
     const startMs = Date.now() - startTime;
     const status = api.getStatus();
     assert.ok(

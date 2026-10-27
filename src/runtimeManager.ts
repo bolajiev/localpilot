@@ -281,15 +281,6 @@ export class RuntimeManager implements vscode.Disposable {
       : path.join(this.context.extensionUri.fsPath, "resources", "node", "bin", "node");
   }
 
-  public get bundledModelPath(): string {
-    return path.join(
-      this.context.extensionUri.fsPath,
-      "resources",
-      "models",
-      "Qwen3-0.6B-Q4_0.gguf"
-    );
-  }
-
   public get bundledQvacEntry(): string {
     const runtimeRoot = path.join(
       this.context.extensionUri.fsPath,
@@ -484,7 +475,6 @@ export class RuntimeManager implements vscode.Disposable {
       throw friendly;
     }
 
-    const effectiveSettings = await this.withBundledModel(settings);
     const endpoint = endpointForSettings(settings);
     if (this.child && this.child.exitCode === null) {
       const busy = new LocalPilotError(
@@ -571,10 +561,10 @@ export class RuntimeManager implements vscode.Disposable {
     }
 
     progress?.("Writing the local QVAC configuration…");
-    await writeQvacConfig(this.configPath, effectiveSettings);
+    await writeQvacConfig(this.configPath, settings);
     this.log(
       `Wrote QVAC config: ${this.configPath} modelSource=${
-        effectiveSettings.modelPath ? "local" : "catalog"
+        settings.modelPath ? "local" : "catalog"
       }`
     );
     const debugLog = process.env.LOCALPILOT_RUNTIME_LOG_FILE;
@@ -582,7 +572,7 @@ export class RuntimeManager implements vscode.Disposable {
       void fs.appendFile(
         debugLog,
         `[localpilot] cwd=${this.context.globalStorageUri.fsPath} config=${this.configPath} modelSource=${
-          effectiveSettings.modelPath ? "local" : "catalog"
+          settings.modelPath ? "local" : "catalog"
         } cli=${runtime.cliPath}\n`
       ).catch(() => undefined);
     }
@@ -996,15 +986,12 @@ export class RuntimeManager implements vscode.Disposable {
   }
 
   public async check(): Promise<RuntimeCheckReport> {
-    const configuredSettings = this.settingsProvider();
-    let settings = configuredSettings;
+    const settings = this.settingsProvider();
     const warnings: string[] = [];
     const errors: string[] = [];
     let endpoint = "";
 
     try {
-      validateSettings(configuredSettings);
-      settings = await this.withBundledModel(configuredSettings);
       validateSettings(settings);
       endpoint = endpointForSettings(settings);
       if (settings.modelPath) {
@@ -1101,21 +1088,6 @@ export class RuntimeManager implements vscode.Disposable {
       warnings,
       errors
     };
-  }
-
-  private async withBundledModel(settings: LocalPilotSettings): Promise<LocalPilotSettings> {
-    if (settings.modelPath || settings.modelId !== "QWEN3_600M_INST_Q4") {
-      return settings;
-    }
-    try {
-      const stat = await fs.stat(this.bundledModelPath);
-      if (stat.isFile() && stat.size > 0) {
-        return { ...settings, modelPath: this.bundledModelPath };
-      }
-    } catch {
-      // Generic/unbundled builds fall back to the QVAC catalog download.
-    }
-    return settings;
   }
 
   private updateStatus(patch: Partial<RuntimeStatus> & Pick<RuntimeStatus, "state" | "label" | "detail">): void {

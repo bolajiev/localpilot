@@ -21,11 +21,11 @@ Do not assume that the absence of an NVIDIA GPU means Vulkan is unavailable. QVA
 
 ## "QVAC CLI was not found" / automatic setup
 
-LocalPilot no longer requires a manual global QVAC install. The Windows VSIX also bundles Node.js/npm. Click the LocalPilot Activity Bar icon and run **Set Up LocalPilot**, or **LocalPilot: Set Up LocalPilot (QVAC + Model)** from the Command Palette. It installs QVAC privately under VS Code global storage (`...\User\globalStorage\localpilot.localpilot\qvac-runtime`) and then downloads the model.
+LocalPilot no longer requires a manual global QVAC install. The Windows VSIX includes Node.js/npm and the full QVAC runtime. Click the LocalPilot Activity Bar icon; the welcome page lets the user download a catalog model or choose a local GGUF. On generic/source builds, LocalPilot installs QVAC privately under VS Code global storage (`...\User\globalStorage\localpilot.localpilot\qvac-runtime`) if needed.
 
 The automatic install:
 
-- On Windows, the `win32-x64` VSIX bundles Node.js 24.21.0/npm, so no separate Node install is needed. Generic/source builds require Node.js 22.21+ or 24.9+.
+- On Windows, the `win32-x64` VSIX bundles Node.js, npm, and QVAC. The model is chosen/downloaded on the welcome page. Generic/source builds require Node.js 22.21+ or 24.9+.
 - Downloads about **3 GB** and needs internet.
 - Does not require administrator rights.
 - Does not replace or delete a global QVAC install. If a supported global CLI exists, LocalPilot uses it instead.
