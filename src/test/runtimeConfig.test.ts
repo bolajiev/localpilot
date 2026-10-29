@@ -122,3 +122,20 @@ test("readModelCacheInfo returns an empty result for a missing cache", async () 
     await fs.rm(home, { recursive: true, force: true });
   }
 });
+
+test("readCachedModels lists complete GGUF files with friendly labels", async () => {
+  const { readCachedModels } = await import("../modelCache");
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "localpilot-cached-models-"));
+  try {
+    const models = path.join(home, ".qvac", "models");
+    await fs.mkdir(models, { recursive: true });
+    await fs.writeFile(path.join(models, "5b8aae816570a09d_Qwen3-0.6B-Q4_0.gguf"), "12345678");
+    await fs.writeFile(path.join(models, "partial.gguf.part"), "123");
+    const cached = await readCachedModels(home);
+    assert.equal(cached.length, 1);
+    assert.equal(cached[0].label, "Qwen3 0.6B Q4 0");
+    assert.equal(cached[0].sizeBytes, 8);
+  } finally {
+    await fs.rm(home, { recursive: true, force: true });
+  }
+});

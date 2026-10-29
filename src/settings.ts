@@ -12,7 +12,7 @@ export function readSettings(): LocalPilotSettings {
     modelPath: config.get<string>("modelPath", ""),
     modelAlias: config.get<string>("modelAlias", "localpilot-model"),
     contextSize: config.get<number>("contextSize", 4096),
-    maxOutputTokens: config.get<number>("maxOutputTokens", 384),
+    maxOutputTokens: config.get<number>("maxOutputTokens", 256),
     temperature: config.get<number>("temperature", 0.2),
     enableReasoning: config.get<boolean>("enableReasoning", false),
     maxSelectionChars: config.get<number>("maxSelectionChars", 6000),

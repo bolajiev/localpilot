@@ -82,6 +82,10 @@ const statusSetup = `
   window.postMessage({ type: 'setupConfig', config: {
     modelId: 'QWEN3_600M_INST_Q4', modelPath: '', onboarded: false
   } }, '*');
+  window.postMessage({ type: 'cachedModels', models: [{
+    label: 'Qwen3 0.6B Q4 0', fileName: '5b8aae816570a09d_Qwen3-0.6B-Q4_0.gguf',
+    sizeBytes: 382156480, path: 'C:/Users/you/.qvac/models/5b8aae816570a09d_Qwen3-0.6B-Q4_0.gguf'
+  }], directory: 'C:/Users/you/.qvac/models' }, '*');
   window.postMessage({ type: 'mode', mode: 'setup' }, '*');
 `;
 

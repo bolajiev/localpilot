@@ -1,3 +1,4 @@
+import { promises as fs } from "node:fs";
 import * as vscode from "vscode";
 import {
   ChatAction,
@@ -24,6 +25,7 @@ import {
   formatCheckReport
 } from "./runtimeManager";
 import { assertLocalModelFile } from "./runtimeConfig";
+import { modelCacheDirectory, readCachedModels } from "./modelCache";
 import { readSettings } from "./settings";
 
 let outputChannel: vscode.OutputChannel | undefined;
@@ -492,6 +494,7 @@ async function openSetupPage(): Promise<ChatPanel> {
   surface.setSetupConfig(currentSetupConfig());
   surface.setSetupError("");
   surface.setSetupBusy(false, "");
+  await refreshSetupCache(surface);
   surface.setMode("setup");
   return surface;
 }
@@ -503,6 +506,21 @@ async function showChatPage(): Promise<ChatPanel> {
   const surface = await showChatSurface(false);
   surface.setMode("chat");
   return surface;
+}
+
+async function refreshSetupCache(surface: ChatPanel): Promise<void> {
+  try {
+    const models = await readCachedModels();
+    surface.setCachedModels(models, modelCacheDirectory());
+  } catch (error) {
+    log(`model cache scan failed: ${toFriendlyError(error).message}`);
+  }
+}
+
+async function openModelsFolder(): Promise<void> {
+  const directory = modelCacheDirectory();
+  await fs.mkdir(directory, { recursive: true });
+  await vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(directory));
 }
 
 async function browseModelForSetup(): Promise<void> {
@@ -950,6 +968,9 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
       case "browseModel":
         await browseModelForSetup();
         break;
+      case "openModelsFolder":
+        await openModelsFolder();
+        break;
       case "startSetup":
         await startSetup(action);
         break;
@@ -1005,6 +1026,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
   register("localpilot.explainSelection", () => explainSelection());
   register("localpilot.stopRuntime", () => stopRuntimeInteractive(false));
   register("localpilot.showLogs", () => outputChannel?.show(true));
+  register("localpilot.openModelsFolder", () => openModelsFolder());
   register("localpilot.statusMenu", () => showStatusMenu());
   register("localpilot.openSettingsInternal", () => openSettings());
 }
@@ -1034,6 +1056,7 @@ export function activate(context: vscode.ExtensionContext): LocalPilotApi {
       surface.setStatus(statusToChat(runtime().getStatus()));
       surface.setSetupConfig(currentSetupConfig());
       surface.setMode(initialMode());
+      void refreshSetupCache(surface);
     })
   );
   context.subscriptions.push(manager.onDidChangeStatus(handleStatusChange));

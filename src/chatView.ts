@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
+import type { CachedModel } from "./modelCache";
 
 export type ChatAction =
   | { type: "ready" }
@@ -12,6 +13,7 @@ export type ChatAction =
   | { type: "showSetup" }
   | { type: "showChat" }
   | { type: "browseModel" }
+  | { type: "openModelsFolder" }
   | { type: "startSetup"; kind: "catalog"; modelId: string }
   | { type: "startSetup"; kind: "local"; modelPath: string }
   | { type: "selectModel" }
@@ -49,6 +51,7 @@ export class ChatPanel implements vscode.Disposable {
   private status?: ChatStatus;
   private mode: "setup" | "chat" = "setup";
   private setupConfig?: SetupConfig;
+  private cachedModels?: { models: CachedModel[]; directory: string };
   private messageCounter = 0;
   private disposed = false;
 
@@ -123,6 +126,11 @@ export class ChatPanel implements vscode.Disposable {
     this.post({ type: "setupLocalPath", path: modelPath });
   }
 
+  public setCachedModels(models: CachedModel[], directory: string): void {
+    this.cachedModels = { models, directory };
+    this.post({ type: "cachedModels", models, directory });
+  }
+
   public setBusy(active: boolean, label: string, canCancel: boolean): void {
     this.post({ type: "busy", active, label, canCancel });
   }
@@ -194,6 +202,13 @@ export class ChatPanel implements vscode.Disposable {
         if (this.setupConfig) {
           this.post({ type: "setupConfig", config: this.setupConfig });
         }
+        if (this.cachedModels) {
+          this.post({
+            type: "cachedModels",
+            models: this.cachedModels.models,
+            directory: this.cachedModels.directory
+          });
+        }
         return { type: "ready" };
       case "send":
         return typeof record.text === "string" ? { type: "send", text: record.text } : undefined;
@@ -213,6 +228,7 @@ export class ChatPanel implements vscode.Disposable {
       case "showSetup":
       case "showChat":
       case "browseModel":
+      case "openModelsFolder":
       case "selectModel":
       case "openSettings":
         return { type: record.type };
@@ -283,6 +299,7 @@ function chatHtml(): string {
   button:hover { border-color: var(--muted); }
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+  button.power { min-width: 48px; }
   main { flex: 1; overflow-y: auto; }
   /* Setup */
   .setup { display: flex; justify-content: center; padding: 24px 16px 16px; }
@@ -303,17 +320,24 @@ function chatHtml(): string {
   .setup-actions button { padding: 6px 10px; font-size: 12px; }
   .setup-actions button.primary { padding: 7px 10px; }
   .setup-note { color: var(--muted); font-size: 10px; line-height: 1.45; margin: 14px 0 0; }
+  .setup-feedback { min-height: 18px; margin: 0 0 8px; }
   .setup-error {
     color: var(--error); font-size: 11px; line-height: 1.4;
-    margin: 0 0 10px; white-space: pre-wrap;
+    white-space: pre-wrap;
   }
-  .setup-busy { color: var(--muted); font-size: 11px; margin: 0 0 10px; }
+  .setup-busy { color: var(--muted); font-size: 11px; }
+  .cached { margin: 0 0 12px; }
+  .cached-title { color: var(--muted); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; margin: 4px 0 2px; }
+  .cache-dir { color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 12px; overflow-wrap: anywhere; }
+  .cache-actions { margin-top: 2px; }
   .link { background: none; border: 0; padding: 0; color: var(--vscode-textLink-foreground); cursor: pointer; font-size: 11px; }
   /* Chat */
   .chat { padding: 14px 12px 6px; }
   .msg { margin: 0 0 14px; }
   .msg .who { color: var(--muted); font-size: 10px; margin-bottom: 3px; }
-  .msg.user .body { color: var(--fg); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.user { margin-left: 36px; }
+  .msg.user .who { text-align: right; }
+  .msg.user .body { background: var(--input); color: var(--input-fg); border-radius: 5px; padding: 6px 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.assistant .body { border-left: 2px solid var(--line); padding-left: 9px; line-height: 1.5; overflow-wrap: anywhere; }
   .msg.info .body, .msg.note .body, .msg.error .body { color: var(--muted); font-size: 11px; white-space: pre-wrap; }
   .msg.error .body { color: var(--error); }
@@ -355,8 +379,7 @@ function chatHtml(): string {
   <div class="brand">LocalPilot</div>
   <div id="status" class="status" title=""><span class="dot"></span><span id="status-label" class="status-label">Starting…</span></div>
   <div class="grow"></div>
-  <button id="start" hidden>Start</button>
-  <button id="stop" hidden>Stop</button>
+  <button id="power" class="power" style="visibility:hidden">Start</button>
   <button id="model" title="Change model">Model</button>
   <button id="settings" title="Settings">Settings</button>
 </header>
@@ -379,14 +402,22 @@ function chatHtml(): string {
         <span><strong>Use a local GGUF</strong><small id="local-path">No file selected</small></span>
       </label>
     </div>
-    <div id="setup-error" class="setup-error" hidden></div>
-    <div id="setup-busy" class="setup-busy" hidden></div>
+    <div id="cached-wrap" class="cached" hidden>
+      <div class="cached-title">Already on this PC</div>
+      <div id="cached-list" class="options"></div>
+    </div>
+    <div class="setup-feedback">
+      <div id="setup-error" class="setup-error" hidden></div>
+      <div id="setup-busy" class="setup-busy" hidden></div>
+    </div>
     <div class="setup-actions">
-      <button id="browse" hidden>Browse for .gguf…</button>
+      <button id="browse" disabled>Browse for .gguf…</button>
       <button id="setup-start" class="primary">Download and start</button>
       <button id="back" class="link" hidden>Back to chat</button>
     </div>
-    <p class="setup-note">No cloud. No telemetry. Prompts stay on this machine. Internet is needed only for the model download.</p>
+    <div id="cache-dir" class="cache-dir"></div>
+    <div class="cache-actions"><button id="open-cache" class="link" hidden>Open models folder</button></div>
+    <p class="setup-note">No cloud. No telemetry. Prompts stay on this machine. Internet is needed only for the model download. CPU inference can take several seconds before the first token.</p>
   </div>
 </main>
 
@@ -414,8 +445,7 @@ function chatHtml(): string {
   const input = document.getElementById('input');
   const send = document.getElementById('send');
   const cancel = document.getElementById('cancel');
-  const start = document.getElementById('start');
-  const stop = document.getElementById('stop');
+  const power = document.getElementById('power');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
   const busyLabel = document.getElementById('busy-label');
@@ -426,34 +456,50 @@ function chatHtml(): string {
   const browse = document.getElementById('browse');
   const back = document.getElementById('back');
   const localPathLabel = document.getElementById('local-path');
-  const radios = Array.from(document.querySelectorAll('input[name="model"]'));
+  const cachedWrap = document.getElementById('cached-wrap');
+  const cachedList = document.getElementById('cached-list');
+  const cacheDir = document.getElementById('cache-dir');
+  const openCache = document.getElementById('open-cache');
   const assistants = new Map();
   let busy = false;
   let canCancel = false;
   let mode = 'setup';
-  let setupActive = false;
+  let runtimeState = 'stopped';
   let setupRunning = false;
   let onboarded = false;
   let localPath = '';
+  let cachedModels = [];
+  let cacheDirectory = '';
 
   function post(message) { vscode.postMessage(message); }
-  function selectedValue() { const r = radios.find((x) => x.checked); return r ? r.value : 'QWEN3_600M_INST_Q4'; }
+  function allRadios() { return Array.from(document.querySelectorAll('input[name="model"]')); }
+  function selectedValue() { const r = allRadios().find((x) => x.checked); return r ? r.value : 'QWEN3_600M_INST_Q4'; }
   function isLocal() { return selectedValue() === 'local'; }
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '';
+    if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(2) + ' GB';
+    return (bytes / 1024 ** 2).toFixed(1) + ' MB';
+  }
   function updateSetup() {
     const local = isLocal();
-    browse.hidden = !local;
+    const cached = selectedValue().startsWith('cached:');
+    browse.disabled = setupRunning || !local;
     back.hidden = !onboarded;
-    start.hidden = setupActive || mode === 'setup';
-    stop.hidden = !setupActive;
     setupStart.disabled = setupRunning || (local && !localPath);
     setupStart.textContent = setupRunning
       ? 'Working…'
-      : local
+      : local || cached
         ? 'Use this model'
         : 'Download and start';
-    radiodisable();
+    for (const r of allRadios()) r.disabled = setupRunning;
+    updatePower();
   }
-  function radiodisable() { for (const r of radios) r.disabled = setupRunning; }
+  function updatePower() {
+    const active = runtimeState === 'running' || runtimeState === 'external';
+    power.textContent = active ? 'Stop' : 'Start';
+    power.disabled = runtimeState === 'starting' || runtimeState === 'stopping';
+    power.style.visibility = mode === 'chat' ? 'visible' : 'hidden';
+  }
   function nearBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 100; }
   function scroll(force) { if (force || nearBottom()) requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; }); }
 
@@ -544,8 +590,8 @@ function chatHtml(): string {
         status.title = s.detail || s.label || '';
         statusLabel.textContent = labels[s.state] || s.label;
         modelLabel.textContent = names[s.modelId] || s.modelAlias || '';
+        runtimeState = s.state;
         const active = s.state === 'running' || s.state === 'external';
-        setupActive = active;
         updateSetup();
         break;
       }
@@ -563,11 +609,11 @@ function chatHtml(): string {
         onboarded = Boolean(c.onboarded);
         localPath = c.modelPath || '';
         if (c.modelPath) {
-          const r = radios.find((x) => x.value === 'local');
+          const r = allRadios().find((x) => x.value === 'local');
           if (r) r.checked = true;
           localPathLabel.textContent = c.modelPath;
         } else {
-          const r = radios.find((x) => x.value === c.modelId);
+          const r = allRadios().find((x) => x.value === c.modelId);
           if (r) r.checked = true;
           localPathLabel.textContent = 'No file selected';
         }
@@ -578,9 +624,45 @@ function chatHtml(): string {
       case 'setupLocalPath': {
         localPath = m.path || '';
         localPathLabel.textContent = localPath || 'No file selected';
-        const r = radios.find((x) => x.value === 'local');
+        const r = allRadios().find((x) => x.value === 'local');
         if (r) r.checked = true;
         setupError.hidden = true;
+        updateSetup();
+        break;
+      }
+      case 'cachedModels': {
+        cachedModels = Array.isArray(m.models) ? m.models : [];
+        cacheDirectory = m.directory || '';
+        cachedList.textContent = '';
+        cachedWrap.hidden = cachedModels.length === 0;
+        cachedModels.forEach(function (model, index) {
+          const label = document.createElement('label');
+          label.className = 'option';
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = 'model';
+          input.value = 'cached:' + index;
+          const span = document.createElement('span');
+          const strong = document.createElement('strong');
+          strong.textContent = model.label || model.fileName || 'Local model';
+          const small = document.createElement('small');
+          small.textContent = [formatBytes(model.sizeBytes), 'already downloaded'].filter(Boolean).join(' · ');
+          small.title = model.path || '';
+          span.appendChild(strong);
+          span.appendChild(small);
+          label.appendChild(input);
+          label.appendChild(span);
+          cachedList.appendChild(label);
+        });
+        if (localPath) {
+          const match = cachedModels.findIndex(function (model) { return model.path === localPath; });
+          if (match >= 0) {
+            const r = allRadios().find(function (x) { return x.value === 'cached:' + match; });
+            if (r) r.checked = true;
+          }
+        }
+        cacheDir.textContent = cacheDirectory ? 'Models folder: ' + cacheDirectory : '';
+        openCache.hidden = !cacheDirectory;
         updateSetup();
         break;
       }
@@ -626,15 +708,27 @@ function chatHtml(): string {
         const entry = addMessage('assistant streaming', 'LocalPilot', '');
         const meta = document.createElement('div');
         meta.className = 'meta';
-        meta.textContent = 'thinking…';
+        meta.textContent = 'waiting for first token · 0.0s';
         entry.wrap.appendChild(meta);
-        assistants.set(m.id, { ...entry, meta, text: '' });
+        const startedAt = performance.now();
+        const timer = setInterval(function () {
+          const a = assistants.get(m.id);
+          if (!a || a.hasContent) return;
+          a.meta.textContent =
+            'waiting for first token · ' + ((performance.now() - startedAt) / 1000).toFixed(1) + 's';
+        }, 250);
+        assistants.set(m.id, { ...entry, meta, text: '', hasContent: false, timer });
         scroll(true);
         break;
       }
       case 'assistantDelta': {
         const a = assistants.get(m.id);
         if (!a) break;
+        if (!a.hasContent) {
+          a.hasContent = true;
+          clearInterval(a.timer);
+          a.meta.textContent = 'generating…';
+        }
         a.text += m.text || '';
         render(a.body, a.text);
         scroll(false);
@@ -643,6 +737,7 @@ function chatHtml(): string {
       case 'assistantEnd': {
         const a = assistants.get(m.id);
         if (!a) break;
+        clearInterval(a.timer);
         a.wrap.classList.remove('streaming');
         const meta = m.meta || {};
         const bits = [];
@@ -662,6 +757,7 @@ function chatHtml(): string {
         break;
       case 'clear':
         chat.textContent = '';
+        for (const a of assistants.values()) clearInterval(a.timer);
         assistants.clear();
         break;
     }
@@ -676,22 +772,32 @@ function chatHtml(): string {
   }
   function beginSetup() {
     setupError.hidden = true;
-    if (isLocal()) {
+    const value = selectedValue();
+    if (value.startsWith('cached:')) {
+      const model = cachedModels[Number(value.slice(7))];
+      if (!model || !model.path) { showError('That cached model is no longer available.'); return; }
+      post({ type: 'startSetup', kind: 'local', modelPath: model.path });
+    } else if (value === 'local') {
       if (!localPath) { showError('Choose a .gguf file first.'); return; }
       post({ type: 'startSetup', kind: 'local', modelPath: localPath });
     } else {
-      post({ type: 'startSetup', kind: 'catalog', modelId: selectedValue() });
+      post({ type: 'startSetup', kind: 'catalog', modelId: value });
     }
   }
 
-  for (const r of radios) r.addEventListener('change', updateSetup);
+  setup.addEventListener('change', (event) => {
+    if (event.target && event.target.name === 'model') updateSetup();
+  });
   browse.addEventListener('click', () => post({ type: 'browseModel' }));
   setupStart.addEventListener('click', beginSetup);
   back.addEventListener('click', () => post({ type: 'showChat' }));
+  openCache.addEventListener('click', () => post({ type: 'openModelsFolder' }));
   document.getElementById('model').addEventListener('click', () => post({ type: 'showSetup' }));
   document.getElementById('settings').addEventListener('click', () => post({ type: 'openSettings' }));
-  start.addEventListener('click', () => post({ type: 'startRuntime' }));
-  stop.addEventListener('click', () => post({ type: 'stopRuntime' }));
+  power.addEventListener('click', () => {
+    if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
+    else post({ type: 'startRuntime' });
+  });
   send.addEventListener('click', submit);
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); }

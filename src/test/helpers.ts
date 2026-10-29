@@ -10,7 +10,7 @@ export function testSettings(overrides: Partial<LocalPilotSettings> = {}): Local
     modelPath: "",
     modelAlias: "localpilot-model",
     contextSize: 4096,
-    maxOutputTokens: 384,
+    maxOutputTokens: 256,
     temperature: 0.2,
     enableReasoning: false,
     maxSelectionChars: 6000,

@@ -183,6 +183,17 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.9.0 cache discovery, stable layout, and latency feedback (2026-10-26)
+
+- Added `src/modelCache.ts`: scans `~/.qvac/models` for complete `.gguf` files, derives friendly labels, and lists them on the setup page under **Already on this PC**.
+- Setup now shows the model cache directory and an **Open models folder** action.
+- User messages align right, assistant messages left; the header uses one fixed-width Start/Stop button so controls do not jump.
+- Added a live "waiting for first token" timer and "generating…" status to make CPU latency visible. Stop/cancel remains available.
+- Reduced default `maxOutputTokens` from 384 to 256.
+- Added unit coverage for cached-model discovery.
+- Full 0.9.0 VS Code Extension Host integration passed: welcome/setup start, real chat, Explain Selected Code, managed stop, and user-supplied local GGUF. On the loaded host: start 69.6 s, chat 55.5 s, Explain 150.2 s, local GGUF 84.9 s.
+- QVAC remains bundled in the Windows package as the trimmed chat runtime (~257 MB VSIX); model choice/download remains on the welcome page. Windows execution still NOT TESTED.
+
 ## 0.8.0 minimal UI polish and previews (2026-10-26)
 
 - Compact status labels and friendly model name in the sidebar header.
@@ -305,7 +316,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - GitHub Actions workflow: PASS (clean install, typecheck, 43 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
 - The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and setup. `0.4.0` bundled Node. `0.5.0` bundled full QVAC and the model. `0.6.0` moved model choice to a welcome page. `0.7.0` trims QVAC to the chat/LLM subset to cut download size.
-- Release assets: `localpilot-0.8.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.8.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Release assets: `localpilot-0.9.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.9.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -341,7 +352,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.8.0; Windows Node+trimmed QVAC + generic)
+- [x] GitHub Release assets published for download (0.9.0; Windows Node+trimmed QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

@@ -2,7 +2,7 @@
   "name": "localpilot",
   "displayName": "LocalPilot",
   "description": "Private, CPU-first local AI coding assistant for VS Code powered by QVAC.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "publisher": "localpilot",
   "license": "MIT",
   "engines": {
@@ -71,6 +71,11 @@
       {
         "command": "localpilot.statusMenu",
         "title": "Status Menu",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.openModelsFolder",
+        "title": "Open Model Cache Folder",
         "category": "LocalPilot"
       }
     ],
@@ -144,7 +149,7 @@
         },
         "localpilot.maxOutputTokens": {
           "type": "number",
-          "default": 384,
+          "default": 256,
           "minimum": 16,
           "maximum": 4096,
           "description": "Maximum number of generated tokens per response."
@@ -229,7 +234,7 @@
     "smoke:explain": "node scripts/explain-smoke.js",
     "check:webview": "node scripts/check-webview.js",
     "test:integration": "npm run compile && node out/test/integration/runTest.js",
-    "package:win32": "vsce package --no-dependencies --ignoreFile .vscodeignore.win32 --target win32-x64 -o localpilot-0.8.0-win32-x64.vsix"
+    "package:win32": "vsce package --no-dependencies --ignoreFile .vscodeignore.win32 --target win32-x64 -o localpilot-0.9.0-win32-x64.vsix"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

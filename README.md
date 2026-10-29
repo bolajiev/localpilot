@@ -28,7 +28,7 @@ LocalPilot contributes its own **Activity Bar** icon (the robot). The view opens
 The view is intentionally compact:
 
 - **Header:** status and actions (**Start/Stop**, **Model**, **Settings**).
-- **Middle:** the welcome/setup page, then the chat transcript after setup.
+- **Middle:** the welcome/setup page, then the chat transcript after setup. User messages align right and assistant messages align left, like a normal chat.
 - **Bottom:** the message composer, fixed above the status line.
 
 ![LocalPilot setup](docs/ui/setup.png)
@@ -98,7 +98,7 @@ Require a Vulkan API version of 1.4 or newer. If only an older version is availa
 
 **Download the prebuilt VSIX (recommended):**
 
-Download the latest Windows all-in-one `localpilot-0.8.0-win32-x64.vsix` from:
+Download the latest Windows all-in-one `localpilot-0.9.0-win32-x64.vsix` from:
 
 ```text
 https://github.com/bolajiev/localpilot/releases/latest
@@ -107,12 +107,12 @@ https://github.com/bolajiev/localpilot/releases/latest
 Then install it:
 
 ```powershell
-code --install-extension .\localpilot-0.8.0-win32-x64.vsix
+code --install-extension .\localpilot-0.9.0-win32-x64.vsix
 ```
 
 Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
 
-The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.8.0.vsix` is for development/other platforms and requires a system Node.js.
+The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.9.0.vsix` is for development/other platforms and requires a system Node.js.
 
 **Build from source instead:**
 
@@ -120,7 +120,7 @@ The `win32-x64` asset is the recommended Windows package: it contains Node and Q
 npm ci
 npm run check
 npm run package
-code --install-extension .\localpilot-0.8.0.vsix
+code --install-extension .\localpilot-0.9.0.vsix
 ```
 
 For development, open the folder in VS Code and press **F5** to launch the Extension Development Host. The `preLaunchTask` compiles TypeScript.
@@ -135,7 +135,7 @@ Click the LocalPilot robot icon in the Activity Bar. On first open, the welcome 
 4. Use **Model** in the sidebar header to switch models later.
 5. Run **LocalPilot: Stop Runtime** to unload the model and stop the managed process.
 
-The initial response can be slow on CPU. The default context is 4096 tokens and the default output cap is 384 tokens. Adjust `localpilot.maxOutputTokens` if needed.
+The initial response can be slow on CPU: QVAC must load the GGUF, prefill the prompt, and generate the first token. The chat shows a live **waiting for first token** timer while this happens; **Stop** cancels. The default output cap is **256 tokens** to keep replies shorter. Qwen3 1.7B is slower than 0.6B.
 
 ### What is inside the Windows VSIX?
 
@@ -195,7 +195,14 @@ Users without a model do **not** need a separate store. On first open, the sideb
 
 After choosing, press **Download and start** or **Use this model**. The page switches to chat when the model is ready. **Model** in the sidebar header reopens the page later. Advanced users can enter another QVAC catalog constant in `localpilot.modelId`.
 
-**If the model is already in QVAC's cache** (`~/.qvac/models`), simply start the matching catalog model; QVAC reuses the cached files and can start offline.
+**If the model is already in QVAC's cache**, the welcome page detects `.gguf` files under:
+
+```text
+%USERPROFILE%\.qvac\models        (Windows)
+~/.qvac/models                      (Linux/macOS)
+```
+
+and lists them under **Already on this PC**. Select one and continue; no download is repeated. The setup page also shows the exact folder and an **Open models folder** link.
 
 **If you have your own GGUF file**, choose **Use an existing local GGUF file…** and select it. LocalPilot writes an explicit QVAC entry:
 
@@ -245,7 +252,7 @@ The 0.6B model is intentionally small for CPU-first execution. It is useful for 
 | `localpilot.modelPath` | empty | Absolute path to an existing llama.cpp-compatible `.gguf` file. Takes precedence over `modelId`. |
 | `localpilot.modelAlias` | `localpilot-model` | Alias used in OpenAI-compatible requests. |
 | `localpilot.contextSize` | `4096` | Model context window (input plus output). |
-| `localpilot.maxOutputTokens` | `384` | Maximum generated tokens per response. |
+| `localpilot.maxOutputTokens` | `256` | Maximum generated tokens per response. |
 | `localpilot.temperature` | `0.2` | Sampling temperature. |
 | `localpilot.enableReasoning` | `false` | Hybrid-model reasoning. Much slower on CPU. |
 | `localpilot.maxSelectionChars` | `6000` | Hard limit for Explain Selected Code. Oversized selections are rejected. |

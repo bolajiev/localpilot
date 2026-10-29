@@ -146,7 +146,7 @@ The file must be a llama.cpp-compatible chat GGUF with a usable chat template. Q
 
 Local files bypass QVAC catalog checksum verification. Verify the source, integrity, license, and memory requirements yourself. If the local model fails but the default works, the file is the likely cause.
 
-If you downloaded the model through QVAC and it is already under `%USERPROFILE%\.qvac\models`, you do **not** need a local path: start the matching catalog model and QVAC will reuse the cache.
+If you downloaded the model through QVAC and it is already under `%USERPROFILE%\.qvac\models`, it appears under **Already on this PC** on the welcome page. Select it and continue; QVAC reuses the cache. The setup page also has **Open models folder**.
 
 ## Model fit / out of memory
 
@@ -158,6 +158,12 @@ The 0.6B Q4 model file is about 382 MB, but the runtime is larger than the file.
 - Keep the default small model.
 - Check Windows Task Manager for the QVAC/bare worker process.
 - Do not assume a 16 GB machine can run several models simultaneously.
+
+## First token takes a long time
+
+Model load, prompt prefill, and the first generated token are the slow part of CPU inference. The sidebar shows a live **waiting for first token** timer and a Stop button. Qwen3 0.6B is the fastest option; 1.7B is slower. The default output cap is 256 tokens.
+
+If it never produces a first token, check **LocalPilot: Check Runtime**, the diagnostics log, and available memory. A model that does not fit can fail before generation.
 
 ## Requests time out or feel very slow
 

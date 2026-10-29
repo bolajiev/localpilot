@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 - 2026-10-26
+
+- Added detection of models already downloaded in `~/.qvac/models`, listed under **Already on this PC**; no repeated download.
+- Added the model-cache path and an **Open models folder** action to setup.
+- Stable header with one power button and reserved space; no Start/Stop layout jumping.
+- Chat layout: user messages right, assistant messages left.
+- Added a live "waiting for first token" timer and clearer streaming status for CPU latency.
+- Reduced the default output cap to 256 tokens.
+- Setup page shows a fixed feedback area and always-available local-file browser.
+
 ## 0.8.0 - 2026-10-26
 
 - Polished the minimal sidebar UI: compact status labels ("Running", "Stopped"), friendly model label, and cleaner header actions.
