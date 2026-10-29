@@ -145,8 +145,35 @@ const statusAgent = `
   }, 20);
 `;
 
+const statusWeb = `
+  window.postMessage({ type: 'status', status: {
+    state: 'running', label: 'Running', detail: 'Model ready.',
+    endpoint: 'http://127.0.0.1:11434', modelId: 'QWEN3_600M_INST_Q4',
+    modelAlias: 'localpilot-model', owned: true
+  } }, '*');
+  window.postMessage({ type: 'setupConfig', config: {
+    modelId: 'QWEN3_600M_INST_Q4', modelPath: '', onboarded: true
+  } }, '*');
+  window.postMessage({ type: 'mode', mode: 'chat' }, '*');
+  setTimeout(function () {
+    document.getElementById('agent').click();
+    document.getElementById('net').click();
+    setTimeout(function () {
+      window.postMessage({ type: 'user', text: 'Search the web for the QVAC docs and summarize the local server.' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent tool: web_search' }, '*');
+      window.postMessage({ type: 'note', message: 'Web search: "QVAC docs" (5 results).' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent tool: fetch_url' }, '*');
+      window.postMessage({ type: 'note', message: 'Fetched docs.qvac.tether.io (8,420 characters).' }, '*');
+      window.postMessage({ type: 'assistantStart', id: 3 }, '*');
+      window.postMessage({ type: 'assistantDelta', id: 3, text: 'The QVAC docs describe a local OpenAI-compatible server on 127.0.0.1. Source: https://docs.qvac.tether.io/' }, '*');
+      window.postMessage({ type: 'assistantEnd', id: 3, meta: { elapsedMs: 10400, completionTokens: 28, finishReason: 'stop' } }, '*');
+    }, 30);
+  }, 20);
+`;
+
 fs.writeFileSync(path.join(__dirname, "../docs/ui/setup.html"), makeHtml(statusSetup));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/chat.html"), makeHtml(statusChat));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/download.html"), makeHtml(statusDownload));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/agent.html"), makeHtml(statusAgent));
-console.log("Wrote docs/ui/setup.html, chat.html, download.html, and agent.html");
+fs.writeFileSync(path.join(__dirname, "../docs/ui/web.html"), makeHtml(statusWeb));
+console.log("Wrote docs/ui/setup.html, chat.html, download.html, agent.html, and web.html");

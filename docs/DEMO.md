@@ -8,16 +8,17 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
 2. The Windows `win32-x64` VSIX includes Node.js and QVAC; no separate Node/QVAC install is needed.
 3. LocalPilot VSIX is installed and the Activity Bar icon is visible.
 4. On first open, use the welcome page to download a model (Qwen3 0.6B is 382 MB) or select a local GGUF.
-5. Model cache is primed:
+5. Leave **Net off** for the offline demo. Agent file tools still work; web search/fetch must not be used in the offline demonstration.
+6. Model cache is primed:
    - Run **LocalPilot: Start / Load Local Model** with internet.
    - Run one chat prompt and one **Explain Selected Code**.
    - Confirm fresh output and note timings.
    - Run **LocalPilot: Stop Runtime**.
-6. Close other memory-heavy apps so the 16 GB machine has room for the worker.
-7. Prepare a small code file with a 10-30 line function selected. Do not select the whole file.
-8. Clear the sidebar chat if you do not want previous prompts in the recording.
-9. If you plan to demo an existing local GGUF, confirm **Choose Model or Local GGUF** loads it and that it answers before recording.
-10. Record screen and, if possible, the Task Manager memory graph.
+7. Close other memory-heavy apps so the 16 GB machine has room for the worker.
+8. Prepare a small code file with a 10-30 line function selected. Do not select the whole file.
+9. Clear the sidebar chat if you do not want previous prompts in the recording.
+10. If you plan to demo an existing local GGUF, confirm **Choose Model or Local GGUF** loads it and that it answers before recording.
+11. Record screen and, if possible, the Task Manager memory graph.
 
 ## Demo script (about 4-6 minutes)
 

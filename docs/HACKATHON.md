@@ -51,8 +51,8 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Model source | `unsloth/Qwen3-0.6B-GGUF` commit `50968a4468ef4233ed78cd7c3de230dd1d61a56b` |
 | Model license | Apache-2.0 |
 | QVAC integration files | `src/runtimeLocator.ts`, `src/runtimeManager.ts`, `src/qvacClient.ts`, `src/runtimeConfig.ts` |
-| LocalPilot version | `0.11.0` |
-| Windows package | `localpilot-0.11.0-win32-x64.vsix` (~257 MB; Node.js + chat-only QVAC runtime; model chosen/downloaded on welcome page) |
+| LocalPilot version | `0.12.0` |
+| Windows package | `localpilot-0.12.0-win32-x64.vsix` (~257 MB; Node.js + chat-only QVAC runtime; model chosen/downloaded on welcome page) |
 | Model loading | Curated catalog download or user-supplied local `.gguf` path |
 | UX | Activity Bar sidebar; one-click QVAC + model setup |
 | Extension host | VS Code 1.95+ |
@@ -76,16 +76,16 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Large-model warning | PASS | Red SLOW flag on 1.7B and cached models over 800 MB |
 | Agent file tools | PASS (module) | list/read/write/replace unit-tested; path traversal and denied writes tested |
 | Agent tool calling | PASS (direct QVAC test) | Forced write_file tool call returned valid arguments from QVAC; end-to-end approval flow not automated |
-| Internet lookup | NOT INCLUDED | Deliberately excluded to preserve offline/private core |
+| Optional internet tools | ADDED, OFF BY DEFAULT | Agent Net toggle: web_search + fetch_url; excluded from offline demo |
 | Explain Selected Code with real model | PASS (Linux) | VS Code command integration and offline script |
 | Offline inference after cache | PASS (Linux) | Isolated network namespace, real chat + explain |
 | Windows 10/11 + Vulkan 1.4 | NOT TESTED | No Windows host available in this environment |
 | Windows VSIX install/smoke test | NOT TESTED | VSIX built on Linux; cross-platform package not run on Windows |
 | Demo video with network off | NOT DONE | Must be recorded by the submitter on the target device |
 | Repository link | PASS | https://github.com/bolajiev/localpilot |
-| Windows all-in-one download | PASS | `localpilot-0.11.0-win32-x64.vsix` (Node + trimmed QVAC; model chosen at setup) |
+| Windows all-in-one download | PASS | `localpilot-0.12.0-win32-x64.vsix` (Node + trimmed QVAC; model chosen at setup) |
 | GitHub Actions CI | PASS | Build/test/package workflow succeeded; VSIX artifact uploaded |
-| Clean install/typecheck/unit tests | PASS | 49 unit tests, TypeScript, generic/win32 VSIX |
+| Clean install/typecheck/unit tests | PASS | 51 unit tests, TypeScript, generic/win32 VSIX |
 | Extension Host integration | PASS (Linux) | Start, check, chat, explain command, stop, error paths |
 
 Do not upgrade "PASS (Linux)" to "tested on Windows" without running the Windows sequence.

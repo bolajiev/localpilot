@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { promises as dns } from "node:dns";
 import path from "node:path";
 import { ToolDefinition } from "./agentTypes";
 
@@ -40,18 +41,126 @@ function displayPath(relativePath: string): string {
   return relativePath === "." ? "." : relativePath.split(path.sep).join("/");
 }
 
+export interface AgentToolOptions {
+  webEnabled?: boolean;
+  fetchImpl?: typeof fetch;
+}
+
+function isPrivateIp(value: string): boolean {
+  const host = value.toLowerCase();
+  if (host === "::1" || host === "0:0:0:0:0:0:0:1" || host === "0.0.0.0") {
+    return true;
+  }
+  if (host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:")) {
+    return true;
+  }
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!ipv4) {
+    return false;
+  }
+  const octets = ipv4.slice(1).map(Number);
+  if (octets.some((octet) => octet > 255)) {
+    return true;
+  }
+  const [a, b] = octets;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127)
+  );
+}
+
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) =>
+      String.fromCodePoint(Number.parseInt(hex, 16))
+    )
+    .replace(/&#(\d+);/g, (_match, decimal: string) =>
+      String.fromCodePoint(Number.parseInt(decimal, 10))
+    );
+}
+
+export function stripHtmlToText(html: string): string {
+  return decodeEntities(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export interface WebSearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export function parseDuckDuckGoResults(html: string, limit = 5): WebSearchResult[] {
+  const links: Array<{ href: string; title: string }> = [];
+  const linkPattern = /class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of html.matchAll(linkPattern)) {
+    const href = decodeEntities(match[1]);
+    const title = stripHtmlToText(match[2]);
+    if (title) {
+      links.push({ href, title });
+    }
+    if (links.length >= 20) {
+      break;
+    }
+  }
+  const snippets: string[] = [];
+  const snippetPattern = /class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of html.matchAll(snippetPattern)) {
+    snippets.push(stripHtmlToText(match[1]));
+    if (snippets.length >= 20) {
+      break;
+    }
+  }
+  return links.slice(0, limit).map((link, index) => {
+    let url = link.href;
+    try {
+      const parsed = new URL(link.href, "https://duckduckgo.com");
+      const target = parsed.searchParams.get("uddg");
+      if (target) {
+        url = target;
+      }
+    } catch {
+      // Keep the original href.
+    }
+    return { title: link.title, url, snippet: snippets[index] ?? "" };
+  });
+}
+
 export class AgentTools {
   private readonly root: string;
+  private readonly webEnabled: boolean;
+  private readonly fetchImpl: typeof fetch;
 
   public constructor(
     workspaceRoot: string,
-    private readonly reviewChange: ReviewChange
+    private readonly reviewChange: ReviewChange,
+    options: AgentToolOptions = {}
   ) {
     this.root = path.resolve(workspaceRoot);
+    this.webEnabled = options.webEnabled === true;
+    this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
   public definitions(): ToolDefinition[] {
-    return [
+    const definitions: ToolDefinition[] = [
       {
         type: "function",
         function: {
@@ -111,6 +220,39 @@ export class AgentTools {
         }
       }
     ];
+    if (this.webEnabled) {
+      definitions.push(
+        {
+          type: "function",
+          function: {
+            name: "web_search",
+            description: "Search the web. This sends the query to DuckDuckGo; use only when internet access is needed.",
+            parameters: {
+              type: "object",
+              properties: {
+                query: { type: "string", description: "Search query." }
+              },
+              required: ["query"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "fetch_url",
+            description: "Fetch a public http(s) URL and return readable text. Private/local addresses are blocked.",
+            parameters: {
+              type: "object",
+              properties: {
+                url: { type: "string", description: "Public http(s) URL." }
+              },
+              required: ["url"]
+            }
+          }
+        }
+      );
+    }
+    return definitions;
   }
 
   public async execute(name: string, rawArguments: string): Promise<ToolOutcome> {
@@ -138,6 +280,16 @@ export class AgentTools {
             requireString(args.old_text, "old_text", true),
             requireString(args.new_text, "new_text", true)
           );
+        case "web_search":
+          if (!this.webEnabled) {
+            throw new Error("Internet tools are disabled. Turn on Net in the chat footer.");
+          }
+          return await this.webSearch(requireString(args.query, "query"));
+        case "fetch_url":
+          if (!this.webEnabled) {
+            throw new Error("Internet tools are disabled. Turn on Net in the chat footer.");
+          }
+          return await this.fetchUrl(requireString(args.url, "url"));
         default:
           return { ok: false, content: `Unknown tool: ${name}`, summary: `Unknown tool ${name}.` };
       }
@@ -164,6 +316,106 @@ export class AgentTools {
       throw new Error(`Path traversal into ${segments.find((segment) => SKIP_DIRS.has(segment))} is not allowed.`);
     }
     return { absolute, relative };
+  }
+
+  private async assertPublicUrl(raw: string): Promise<URL> {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new Error("Invalid URL.");
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("Only http(s) URLs are allowed.");
+    }
+    if (url.username || url.password) {
+      throw new Error("URLs with credentials are not allowed.");
+    }
+    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    if (
+      host === "localhost" ||
+      host.endsWith(".local") ||
+      host.endsWith(".internal") ||
+      host === "metadata.google.internal" ||
+      isPrivateIp(host)
+    ) {
+      throw new Error("Private, loopback, and local URLs are not allowed.");
+    }
+    const ipLiteral = /^[\d.]+$/.test(host) || host.includes(":");
+    if (!ipLiteral) {
+      const addresses = await dns.lookup(host, { all: true });
+      if (addresses.length === 0 || addresses.some((entry) => isPrivateIp(entry.address))) {
+        throw new Error("The hostname resolves to a private address.");
+      }
+    }
+    return url;
+  }
+
+  private async fetchText(url: URL, accept: string): Promise<{ response: Response; text: string }> {
+    const response = await this.fetchImpl(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent": "LocalPilot/0.12 (+https://github.com/bolajiev/localpilot)",
+        Accept: accept
+      },
+      signal: AbortSignal.timeout(20000)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} from ${url.hostname}`);
+    }
+    const finalUrl = new URL(response.url || url.toString());
+    await this.assertPublicUrl(finalUrl.toString());
+    const contentType = response.headers.get("content-type") ?? "";
+    if (
+      !/text\/|application\/(json|xml|xhtml)/i.test(contentType) &&
+      contentType.length > 0
+    ) {
+      throw new Error(`Unsupported content type: ${contentType}`);
+    }
+    const text = await response.text();
+    if (text.length > 500_000) {
+      throw new Error("The page is too large to read.");
+    }
+    return { response, text };
+  }
+
+  private async fetchUrl(raw: string): Promise<ToolOutcome> {
+    const url = await this.assertPublicUrl(raw);
+    const { response, text } = await this.fetchText(
+      url,
+      "text/html,application/xhtml+xml,text/plain,application/json;q=0.9,*/*;q=0.1"
+    );
+    const contentType = response.headers.get("content-type") ?? "";
+    const titleMatch = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = titleMatch ? stripHtmlToText(titleMatch[1]) : "";
+    const readable = contentType.includes("html") ? stripHtmlToText(text) : text.trim();
+    const clipped = readable.slice(0, 20_000);
+    return {
+      ok: true,
+      content: `URL: ${url.toString()}\nTitle: ${title || "(none)"}\n\n${clipped}`,
+      summary: `Fetched ${url.hostname} (${clipped.length} characters).`
+    };
+  }
+
+  private async webSearch(rawQuery: string): Promise<ToolOutcome> {
+    const query = rawQuery.trim().slice(0, 400);
+    if (!query) {
+      throw new Error("Search query must not be empty.");
+    }
+    const url = await this.assertPublicUrl(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+    );
+    const { text } = await this.fetchText(url, "text/html");
+    const results = parseDuckDuckGoResults(text, 5);
+    if (results.length === 0) {
+      throw new Error("No search results were returned.");
+    }
+    return {
+      ok: true,
+      content: JSON.stringify(results, null, 2),
+      summary: `Web search: "${query}" (${results.length} results).`
+    };
   }
 
   private async listFiles(requested: string): Promise<ToolOutcome> {

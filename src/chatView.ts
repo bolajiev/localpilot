@@ -4,7 +4,7 @@ import type { CachedModel } from "./modelCache";
 
 export type ChatAction =
   | { type: "ready" }
-  | { type: "send"; text: string; agent?: boolean }
+  | { type: "send"; text: string; agent?: boolean; web?: boolean }
   | { type: "cancel" }
   | { type: "clear" }
   | { type: "startRuntime" }
@@ -191,6 +191,7 @@ export class ChatPanel implements vscode.Disposable {
       type?: unknown;
       text?: unknown;
       agent?: unknown;
+      web?: unknown;
       kind?: unknown;
       modelId?: unknown;
       modelPath?: unknown;
@@ -217,7 +218,12 @@ export class ChatPanel implements vscode.Disposable {
         return { type: "ready" };
       case "send":
         return typeof record.text === "string"
-          ? { type: "send", text: record.text, agent: record.agent === true }
+          ? {
+              type: "send",
+              text: record.text,
+              agent: record.agent === true,
+              web: record.web === true
+            }
           : undefined;
       case "startSetup":
         if (record.kind === "catalog" && typeof record.modelId === "string") {
@@ -309,6 +315,9 @@ function chatHtml(): string {
   button.power { min-width: 48px; }
   button.agent { min-width: 46px; font-size: 10px; padding: 2px 6px; }
   button.agent.active { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+  button.net { min-width: 38px; font-size: 10px; padding: 2px 6px; }
+  button.net.active { background: var(--error); color: #ffffff; border-color: transparent; font-weight: 600; }
+  button.net:disabled { opacity: .35; }
   main { flex: 1; overflow-y: auto; }
   /* Setup */
   .setup { display: flex; justify-content: center; padding: 24px 16px 16px; }
@@ -452,7 +461,8 @@ function chatHtml(): string {
     <button id="cancel" hidden>Stop</button>
   </div>
   <div class="footer-row">
-    <button id="agent" class="agent" title="Agent mode: read workspace files and propose edits; every write needs approval. No internet.">Agent</button>
+    <button id="agent" class="agent" title="Agent mode: read workspace files and propose edits; every write needs approval.">Agent</button>
+    <button id="net" class="net" title="Internet tools: web search and URL fetch. Off by default; sends queries off this machine.">Net</button>
     <span id="model-label"></span>
     <span class="grow"></span>
     <span id="busy-label" class="busy-label"></span>
@@ -470,6 +480,7 @@ function chatHtml(): string {
   const cancel = document.getElementById('cancel');
   const power = document.getElementById('power');
   const agentButton = document.getElementById('agent');
+  const netButton = document.getElementById('net');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
   const busyLabel = document.getElementById('busy-label');
@@ -496,6 +507,7 @@ function chatHtml(): string {
   let onboarded = false;
   let localPath = '';
   let agentMode = false;
+  let netMode = false;
   let cachedModels = [];
   let cacheDirectory = '';
 
@@ -818,7 +830,7 @@ function chatHtml(): string {
     if (!text.trim() || busy) return;
     input.value = '';
     input.style.height = 'auto';
-    post({ type: 'send', text, agent: agentMode });
+    post({ type: 'send', text, agent: agentMode, web: netMode });
   }
   function beginSetup() {
     setupError.hidden = true;
@@ -848,12 +860,27 @@ function chatHtml(): string {
     if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
     else post({ type: 'startRuntime' });
   });
+  function updateAgentUi() {
+    agentButton.classList.toggle('active', agentMode);
+    netButton.disabled = !agentMode;
+    if (!agentMode) netMode = false;
+    netButton.classList.toggle('active', netMode);
+  }
   agentButton.addEventListener('click', () => {
     agentMode = !agentMode;
-    agentButton.classList.toggle('active', agentMode);
+    if (!agentMode) netMode = false;
+    updateAgentUi();
     addMessage('note', '', agentMode
-      ? 'Agent mode ON. LocalPilot can read workspace files and propose edits. Every write requires your approval. No internet access.'
-      : 'Chat mode ON. The model will not use workspace tools.');
+      ? 'Agent mode ON. LocalPilot can read workspace files and propose edits. Every write requires your approval. Internet is off unless you enable Net.'
+      : 'Chat mode ON. The model will not use workspace tools or internet.');
+    input.focus();
+  });
+  netButton.addEventListener('click', () => {
+    netMode = !netMode;
+    updateAgentUi();
+    addMessage('note', '', netMode
+      ? 'Internet ON. Agent requests may send search queries/URLs off this machine. Web content is untrusted. Turn Net off for the offline demo.'
+      : 'Internet OFF. Agent tools are local-only.');
     input.focus();
   });
   send.addEventListener('click', submit);
@@ -866,6 +893,7 @@ function chatHtml(): string {
   });
   cancel.addEventListener('click', () => post({ type: 'cancel' }));
   updateSetup();
+  updateAgentUi();
   post({ type: 'ready' });
 })();
 </script>

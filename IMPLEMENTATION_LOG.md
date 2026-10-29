@@ -183,6 +183,17 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.12.0 optional Agent internet tools (2026-10-26)
+
+- Added `web_search` (DuckDuckGo HTML) and `fetch_url` to Agent mode, behind a **Net** toggle that is off by default.
+- Web tool definitions are added only when Net is enabled; the agent system prompt switches between offline and web modes.
+- Blocked loopback/private/local URLs, credentials, non-http(s) protocols, and DNS names resolving to private addresses. Fetch content is capped/truncated and treated as untrusted.
+- Real network verification: `fetch_url` fetched example.com and `web_search` returned 5 QVAC results; a loopback URL was rejected.
+- Added unit tests for web gating, private URL rejection, and search-result parsing.
+- Offline demo remains unchanged: leave Net off and no web tools are sent.
+- Full 0.12.0 Extension Host integration passed: welcome/setup, chat, Explain, managed stop, local GGUF. On the loaded host, start 134.3 s, chat 225.6 s, Explain 702.9 s, local GGUF 210.1 s.
+- Windows execution remains NOT TESTED.
+
 ## 0.11.0 local Agent mode with file tools (2026-10-26)
 
 - Added an Agent toggle in the chat footer.
@@ -336,7 +347,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - GitHub Actions workflow: PASS (clean install, typecheck, 45 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
 - The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and setup. `0.4.0` bundled Node. `0.5.0` bundled full QVAC and the model. `0.6.0` moved model choice to a welcome page. `0.7.0` trims QVAC to the chat/LLM subset to cut download size.
-- Release assets: `localpilot-0.11.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.11.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Release assets: `localpilot-0.12.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.12.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -351,7 +362,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 
 - [x] Current official hackathon rules checked (2026-10-26)
 - [x] Clean dependency install and TypeScript compile pass
-- [x] Unit tests pass (49/49)
+- [x] Unit tests pass (51/51)
 - [x] Activity Bar sidebar view verified in extension host (0.3.0)
 - [x] Private QVAC auto-install module verified with a real 3.3 GB install
 - [x] Windows all-in-one VSIX built with bundled Node and QVAC
@@ -372,7 +383,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.11.0; Windows Node+trimmed QVAC + generic)
+- [x] GitHub Release assets published for download (0.12.0; Windows Node+trimmed QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

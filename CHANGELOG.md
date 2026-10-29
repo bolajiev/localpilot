@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.0 - 2026-10-26
+
+- Added optional Agent internet tools: `web_search` (DuckDuckGo) and `fetch_url`.
+- Internet is behind a separate **Net** toggle, off by default; web tools are not sent to the model unless enabled.
+- Blocks loopback/private/local hosts and credentials; fetched content is truncated and treated as untrusted.
+- The offline demo can keep Net off; no web tools are available in that mode.
+- Added unit tests for web-tool gating, private URL rejection, and DuckDuckGo parsing.
+
 ## 0.11.0 - 2026-10-26
 
 - Added experimental Agent mode in the chat footer.

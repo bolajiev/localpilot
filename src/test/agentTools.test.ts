@@ -82,3 +82,47 @@ test("AgentTools replace requires a unique exact match", async () => {
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test("AgentTools exposes web tools only when enabled and blocks private URLs", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "localpilot-agent-web-"));
+  try {
+    const disabled = new AgentTools(root, async () => false);
+    assert.equal(
+      disabled.definitions().some((tool) => tool.function.name === "fetch_url"),
+      false
+    );
+    const disabledResult = await disabled.execute(
+      "fetch_url",
+      JSON.stringify({ url: "https://example.com" })
+    );
+    assert.equal(disabledResult.ok, false);
+    assert.match(disabledResult.content, /disabled/);
+
+    const enabled = new AgentTools(root, async () => false, { webEnabled: true });
+    assert.equal(
+      enabled.definitions().some((tool) => tool.function.name === "web_search"),
+      true
+    );
+    const blocked = await enabled.execute(
+      "fetch_url",
+      JSON.stringify({ url: "http://127.0.0.1:11434/v1/models" })
+    );
+    assert.equal(blocked.ok, false);
+    assert.match(blocked.content, /Private/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("DuckDuckGo result parsing extracts titles, decoded URLs, and snippets", async () => {
+  const { parseDuckDuckGoResults } = await import("../agentTools");
+  const html = `
+    <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fdocs&amp;rut=x">Example <b>docs</b></a>
+    <a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fdocs">A &amp; B snippet</a>
+  `;
+  const results = parseDuckDuckGoResults(html);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].title, "Example docs");
+  assert.equal(results[0].url, "https://example.com/docs");
+  assert.equal(results[0].snippet, "A & B snippet");
+});

@@ -14,7 +14,9 @@ import { AgentTools } from "./agentTools";
 import { LocalPilotError, toFriendlyError } from "./errors";
 import { ChatResult, QvacClient } from "./qvacClient";
 import {
+  AGENT_OFFLINE_PROMPT,
   AGENT_SYSTEM_PROMPT,
+  AGENT_WEB_PROMPT,
   assertChatInput,
   buildExplainMessages,
   CHAT_SYSTEM_PROMPT,
@@ -358,7 +360,7 @@ async function reviewAgentChange(
   return choice === "Apply";
 }
 
-async function runAgentRequest(view: ChatPanel, text: string): Promise<void> {
+async function runAgentRequest(view: ChatPanel, text: string, webEnabled: boolean): Promise<void> {
   const settings = readSettings();
   const root = workspaceRoot();
   if (!root) {
@@ -377,12 +379,14 @@ async function runAgentRequest(view: ChatPanel, text: string): Promise<void> {
   const started = Date.now();
 
   try {
-    const tools = new AgentTools(root, reviewAgentChange);
+    const tools = new AgentTools(root, reviewAgentChange, { webEnabled });
     const history = conversation.slice(-8);
     const messages: AgentMessage[] = [
       {
         role: "system",
-        content: `${AGENT_SYSTEM_PROMPT}\nWorkspace root: ${root}\nAll tool paths must be relative to the workspace root.`
+        content: `${AGENT_SYSTEM_PROMPT}\nWorkspace root: ${root}\nAll tool paths must be relative to the workspace root.\n${
+          webEnabled ? AGENT_WEB_PROMPT : AGENT_OFFLINE_PROMPT
+        }`
       },
       ...history.map((message) => ({
         role: message.role as "user" | "assistant",
@@ -461,7 +465,7 @@ async function runAgentRequest(view: ChatPanel, text: string): Promise<void> {
   }
 }
 
-async function handleSend(rawText: string, agent = false): Promise<void> {
+async function handleSend(rawText: string, agent = false, web = false): Promise<void> {
   const view = await showChatSurface(false);
   if (busy) {
     view.restoreInput(rawText);
@@ -489,7 +493,7 @@ async function handleSend(rawText: string, agent = false): Promise<void> {
 
     if (agent) {
       busy = false;
-      await runAgentRequest(view, text);
+      await runAgentRequest(view, text, web && agent);
       return;
     }
 
@@ -1117,7 +1121,7 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
   try {
     switch (action.type) {
       case "send":
-        await handleSend(action.text, action.agent === true);
+        await handleSend(action.text, action.agent === true, action.web === true);
         break;
       case "cancel":
         cancelRequest();
