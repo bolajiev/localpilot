@@ -56,3 +56,47 @@ export async function readCachedModels(home = os.homedir()): Promise<CachedModel
   models.sort((left, right) => left.label.localeCompare(right.label));
   return models;
 }
+
+
+export interface CatalogModelInfo {
+  fileName: string;
+  sizeBytes: number;
+}
+
+export const CATALOG_MODELS: Record<string, CatalogModelInfo> = {
+  QWEN3_600M_INST_Q4: { fileName: "Qwen3-0.6B-Q4_0.gguf", sizeBytes: 382156480 },
+  QWEN3_1_7B_INST_Q4: { fileName: "Qwen3-1.7B-Q4_0.gguf", sizeBytes: 1056782912 },
+  QWEN3_4B_INST_Q4_K_M: { fileName: "Qwen3-4B-Q4_K_M.gguf", sizeBytes: 2497280256 }
+};
+
+export interface CatalogModelCacheState {
+  path?: string;
+  bytes: number;
+  expected: number;
+  cached: boolean;
+}
+
+export function catalogModelInfo(modelId: string): CatalogModelInfo | undefined {
+  return CATALOG_MODELS[modelId];
+}
+
+export async function findCatalogModelCache(
+  modelId: string,
+  home = os.homedir()
+): Promise<CatalogModelCacheState | undefined> {
+  const info = catalogModelInfo(modelId);
+  if (!info) {
+    return undefined;
+  }
+  const models = await readCachedModels(home);
+  const matches = models
+    .filter((model) => model.fileName.toLowerCase().endsWith(info.fileName.toLowerCase()))
+    .sort((left, right) => right.sizeBytes - left.sizeBytes);
+  const best = matches[0];
+  return {
+    path: best?.path,
+    bytes: best?.sizeBytes ?? 0,
+    expected: info.sizeBytes,
+    cached: Boolean(best && best.sizeBytes >= info.sizeBytes * 0.995)
+  };
+}

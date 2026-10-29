@@ -37,6 +37,7 @@ let requestAbort: AbortController | undefined;
 let busy = false;
 let suppressSettingsWarning = false;
 let lastError: LocalPilotError | undefined;
+let lastDownloadProgress: { downloaded: number; total: number } | undefined;
 let extensionContext: vscode.ExtensionContext | undefined;
 
 const ONBOARDING_KEY = "localpilot.onboarded";
@@ -50,6 +51,7 @@ export interface LocalPilotApi {
   createClient(): QvacClient;
   getLastResponse(): string | undefined;
   getLastError(): { code: string; message: string; hint?: string } | undefined;
+  getLastDownloadProgress(): { downloaded: number; total: number } | undefined;
   sendChat(text: string): Promise<void>;
   setupModel(kind: "catalog" | "local", value: string): Promise<void>;
 }
@@ -546,11 +548,13 @@ async function startSetup(
   const surface = panel() ?? (await showChatSurface(false));
   surface.setMode("setup");
   surface.setSetupError("");
+  surface.setDownloadProgress(0, 0, false);
   surface.setSetupBusy(
     true,
-    action.kind === "local" ? "Loading the local model…" : "Downloading the model…"
+    action.kind === "local" ? "Loading the local model…" : "Preparing the model…"
   );
   lastError = undefined;
+  lastDownloadProgress = undefined;
 
   try {
     if (action.kind === "catalog") {
@@ -579,6 +583,7 @@ async function startSetup(
     }
 
     await extensionContext?.globalState.update(ONBOARDING_KEY, true);
+    surface.setDownloadProgress(0, 0, false);
     surface.setSetupBusy(false, "");
     surface.setSetupConfig(currentSetupConfig());
     surface.setMode("chat");
@@ -590,6 +595,7 @@ async function startSetup(
     surface.setSetupBusy(false, "");
     surface.setSetupError(friendly.message, friendly.hint);
   } finally {
+    surface.setDownloadProgress(0, 0, false);
     surface.setSetupBusy(false, "");
     setTimeout(() => {
       suppressSettingsWarning = false;
@@ -711,6 +717,8 @@ async function startRuntimeInteractive(fromPanel = false): Promise<boolean> {
   if (!(await ensureQvacInstalled(readSettings(), fromPanel))) {
     return false;
   }
+  const surface = panel();
+  lastDownloadProgress = undefined;
   try {
     await vscode.window.withProgress(
       {
@@ -724,7 +732,11 @@ async function startRuntimeInteractive(fromPanel = false): Promise<boolean> {
         try {
           await runtime().start({
             signal: controller.signal,
-            progress: (message) => progress.report({ message })
+            progress: (message) => progress.report({ message }),
+            onDownloadProgress: (downloaded, total) => {
+              lastDownloadProgress = { downloaded, total };
+              surface?.setDownloadProgress(downloaded, total, true);
+            }
           });
         } finally {
           subscription.dispose();
@@ -732,6 +744,7 @@ async function startRuntimeInteractive(fromPanel = false): Promise<boolean> {
       }
     );
 
+    surface?.setDownloadProgress(0, 0, false);
     const status = runtime().getStatus();
     const message = `LocalPilot runtime ready: ${status.modelAlias} on ${status.endpoint}.`;
     const view = panel();
@@ -754,6 +767,7 @@ async function startRuntimeInteractive(fromPanel = false): Promise<boolean> {
     }
     return true;
   } catch (error) {
+    surface?.setDownloadProgress(0, 0, false);
     const friendly = toFriendlyError(error);
     if (friendly.code === "cancelled") {
       if (fromPanel) {
@@ -1106,6 +1120,8 @@ export function activate(context: vscode.ExtensionContext): LocalPilotApi {
       lastError
         ? { code: lastError.code, message: lastError.message, hint: lastError.hint }
         : undefined,
+    getLastDownloadProgress: () =>
+      lastDownloadProgress ? { ...lastDownloadProgress } : undefined,
     sendChat: (text: string) => handlePanelAction({ type: "send", text }),
     setupModel: (kind, value) =>
       startSetup(

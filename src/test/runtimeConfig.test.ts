@@ -139,3 +139,25 @@ test("readCachedModels lists complete GGUF files with friendly labels", async ()
     await fs.rm(home, { recursive: true, force: true });
   }
 });
+
+test("findCatalogModelCache reports partial and complete cached models", async () => {
+  const { findCatalogModelCache } = await import("../modelCache");
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "localpilot-catalog-cache-"));
+  try {
+    const models = path.join(home, ".qvac", "models");
+    await fs.mkdir(models, { recursive: true });
+    const file = path.join(models, "5b8aae816570a09d_Qwen3-0.6B-Q4_0.gguf");
+    await fs.writeFile(file, "partial");
+    const partial = await findCatalogModelCache("QWEN3_600M_INST_Q4", home);
+    assert.equal(partial?.bytes, 7);
+    assert.equal(partial?.expected, 382156480);
+    assert.equal(partial?.cached, false);
+
+    await fs.truncate(file, 382156480);
+    const complete = await findCatalogModelCache("QWEN3_600M_INST_Q4", home);
+    assert.equal(complete?.bytes, 382156480);
+    assert.equal(complete?.cached, true);
+  } finally {
+    await fs.rm(home, { recursive: true, force: true });
+  }
+});

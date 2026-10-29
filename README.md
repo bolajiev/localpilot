@@ -30,8 +30,11 @@ The view is intentionally compact:
 - **Header:** status and actions (**Start/Stop**, **Model**, **Settings**).
 - **Middle:** the welcome/setup page, then the chat transcript after setup. User messages align right and assistant messages align left, like a normal chat.
 - **Bottom:** the message composer, fixed above the status line.
+- **Download progress:** a reserved progress area shows downloaded size / total size and percent while a catalog model is being fetched. Larger models carry a red **SLOW** warning.
 
 ![LocalPilot setup](docs/ui/setup.png)
+
+![LocalPilot download progress](docs/ui/download.png)
 
 ![LocalPilot chat](docs/ui/chat.png)
 
@@ -98,7 +101,7 @@ Require a Vulkan API version of 1.4 or newer. If only an older version is availa
 
 **Download the prebuilt VSIX (recommended):**
 
-Download the latest Windows all-in-one `localpilot-0.9.0-win32-x64.vsix` from:
+Download the latest Windows all-in-one `localpilot-0.10.0-win32-x64.vsix` from:
 
 ```text
 https://github.com/bolajiev/localpilot/releases/latest
@@ -107,12 +110,12 @@ https://github.com/bolajiev/localpilot/releases/latest
 Then install it:
 
 ```powershell
-code --install-extension .\localpilot-0.9.0-win32-x64.vsix
+code --install-extension .\localpilot-0.10.0-win32-x64.vsix
 ```
 
 Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
 
-The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.9.0.vsix` is for development/other platforms and requires a system Node.js.
+The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.10.0.vsix` is for development/other platforms and requires a system Node.js.
 
 **Build from source instead:**
 
@@ -120,7 +123,7 @@ The `win32-x64` asset is the recommended Windows package: it contains Node and Q
 npm ci
 npm run check
 npm run package
-code --install-extension .\localpilot-0.9.0.vsix
+code --install-extension .\localpilot-0.10.0.vsix
 ```
 
 For development, open the folder in VS Code and press **F5** to launch the Extension Development Host. The `preLaunchTask` compiles TypeScript.
@@ -299,7 +302,7 @@ npm test
 npm run check
 ```
 
-`npm test` runs 43 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
+`npm test` runs 45 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
 
 Linux extension-host integration test (downloads a VS Code test build on first run):
 

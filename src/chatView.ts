@@ -131,6 +131,10 @@ export class ChatPanel implements vscode.Disposable {
     this.post({ type: "cachedModels", models, directory });
   }
 
+  public setDownloadProgress(downloaded: number, total: number, active: boolean): void {
+    this.post({ type: "downloadProgress", downloaded, total, active });
+  }
+
   public setBusy(active: boolean, label: string, canCancel: boolean): void {
     this.post({ type: "busy", active, label, canCancel });
   }
@@ -312,14 +316,23 @@ function chatHtml(): string {
     padding: 11px 2px; border-bottom: 1px solid var(--line); cursor: pointer;
   }
   .option input { margin: 2px 0 0; accent-color: var(--vscode-focusBorder); }
-  .option span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .option > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .option strong { font-weight: 500; font-size: 12px; }
   .option small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+  .option small.warn { color: var(--error); }
+  .flag { display: inline-block; border: 1px solid currentColor; border-radius: 2px; padding: 0 3px; font-size: 9px; margin-left: 4px; letter-spacing: .3px; vertical-align: 1px; }
   .option.disabled { opacity: .55; cursor: default; }
   .setup-actions { display: flex; flex-direction: column; gap: 8px; }
   .setup-actions button { padding: 6px 10px; font-size: 12px; }
   .setup-actions button.primary { padding: 7px 10px; }
   .setup-note { color: var(--muted); font-size: 10px; line-height: 1.45; margin: 14px 0 0; }
+  .progress { min-height: 32px; margin: 2px 0 8px; visibility: hidden; }
+  .progress.active { visibility: visible; }
+  .download-bar { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  #download-fill { width: 0%; height: 100%; background: var(--accent); transition: width .2s ease; }
+  .progress.indeterminate #download-fill { width: 100%; animation: progress-pulse 1.2s infinite; }
+  .download-label { color: var(--muted); font-size: 10px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @keyframes progress-pulse { 50% { opacity: .35; } }
   .setup-feedback { min-height: 18px; margin: 0 0 8px; }
   .setup-error {
     color: var(--error); font-size: 11px; line-height: 1.4;
@@ -395,7 +408,7 @@ function chatHtml(): string {
       </label>
       <label class="option">
         <input type="radio" name="model" value="QWEN3_1_7B_INST_Q4">
-        <span><strong>Qwen3 1.7B</strong><small>1.01 GB · slower, more capable</small></span>
+        <span><strong>Qwen3 1.7B</strong><small class="warn">1.01 GB · slower, more capable <span class="flag">SLOW</span></small></span>
       </label>
       <label class="option">
         <input type="radio" name="model" value="local">
@@ -405,6 +418,10 @@ function chatHtml(): string {
     <div id="cached-wrap" class="cached" hidden>
       <div class="cached-title">Already on this PC</div>
       <div id="cached-list" class="options"></div>
+    </div>
+    <div id="download-progress" class="progress" aria-live="polite">
+      <div class="download-bar"><div id="download-fill"></div></div>
+      <div id="download-label" class="download-label"></div>
     </div>
     <div class="setup-feedback">
       <div id="setup-error" class="setup-error" hidden></div>
@@ -452,6 +469,9 @@ function chatHtml(): string {
   const modelLabel = document.getElementById('model-label');
   const setupError = document.getElementById('setup-error');
   const setupBusy = document.getElementById('setup-busy');
+  const downloadProgress = document.getElementById('download-progress');
+  const downloadFill = document.getElementById('download-fill');
+  const downloadLabel = document.getElementById('download-label');
   const setupStart = document.getElementById('setup-start');
   const browse = document.getElementById('browse');
   const back = document.getElementById('back');
@@ -648,6 +668,13 @@ function chatHtml(): string {
           const small = document.createElement('small');
           small.textContent = [formatBytes(model.sizeBytes), 'already downloaded'].filter(Boolean).join(' · ');
           small.title = model.path || '';
+          if (model.sizeBytes > 800 * 1024 * 1024) {
+            small.classList.add('warn');
+            const flag = document.createElement('span');
+            flag.className = 'flag';
+            flag.textContent = 'SLOW';
+            small.appendChild(flag);
+          }
           span.appendChild(strong);
           span.appendChild(small);
           label.appendChild(input);
@@ -671,6 +698,21 @@ function chatHtml(): string {
         setupBusy.hidden = !setupRunning;
         setupBusy.textContent = m.message || '';
         updateSetup();
+        break;
+      }
+      case 'downloadProgress': {
+        const active = Boolean(m.active);
+        const downloaded = Number(m.downloaded) || 0;
+        const total = Number(m.total) || 0;
+        const pct = total > 0 ? Math.min(100, (downloaded / total) * 100) : 0;
+        downloadProgress.classList.toggle('active', active);
+        downloadProgress.classList.toggle('indeterminate', active && total <= 0);
+        downloadFill.style.width = active ? (total > 0 ? pct.toFixed(1) + '%' : '100%') : '0%';
+        downloadLabel.textContent = active
+          ? total > 0
+            ? 'Downloading ' + formatBytes(downloaded) + ' / ' + formatBytes(total) + ' · ' + pct.toFixed(0) + '%'
+            : 'Downloading ' + formatBytes(downloaded)
+          : '';
         break;
       }
       case 'setupError': {

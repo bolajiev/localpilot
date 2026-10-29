@@ -113,6 +113,11 @@ export async function run(): Promise<void> {
     const startTime = Date.now();
     await api.setupModel("catalog", "QWEN3_600M_INST_Q4");
     const startMs = Date.now() - startTime;
+    const download = api.getLastDownloadProgress();
+    log(`download progress after setup: ${JSON.stringify(download)}`);
+    if (process.env.LOCALPILOT_EXPECT_DOWNLOAD === "1") {
+      assert.ok(download && download.total > 0 && download.downloaded > 0, "download progress should be reported");
+    }
     const status = api.getStatus();
     assert.ok(
       status.state === "running",

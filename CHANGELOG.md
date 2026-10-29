@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0 - 2026-10-26
+
+- Added a model download progress bar with downloaded / total size and percent.
+- Added red **SLOW** warnings to larger catalog models and large cached models.
+- Confirmed download progress with a fresh 382 MB model download; the finalized progress reported 382,156,480 / 382,156,480 bytes.
+- Kept the minimal welcome/chat UI, cached-model list, and first-token timer.
+
 ## 0.9.0 - 2026-10-26
 
 - Added detection of models already downloaded in `~/.qvac/models`, listed under **Already on this PC**; no repeated download.

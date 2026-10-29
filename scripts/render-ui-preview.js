@@ -106,6 +106,21 @@ const statusChat = `
   window.postMessage({ type: 'assistantEnd', id: 1, meta: { elapsedMs: 4200, completionTokens: 9, finishReason: 'stop' } }, '*');
 `;
 
+const statusDownload = `
+  window.postMessage({ type: 'status', status: {
+    state: 'starting', label: 'Starting', detail: 'QVAC is preparing the model.',
+    endpoint: 'http://127.0.0.1:11434', modelId: 'QWEN3_1_7B_INST_Q4',
+    modelAlias: 'localpilot-model', owned: true
+  } }, '*');
+  window.postMessage({ type: 'setupConfig', config: {
+    modelId: 'QWEN3_1_7B_INST_Q4', modelPath: '', onboarded: false
+  } }, '*');
+  window.postMessage({ type: 'mode', mode: 'setup' }, '*');
+  window.postMessage({ type: 'setupBusy', active: true, message: 'Preparing the model…' }, '*');
+  window.postMessage({ type: 'downloadProgress', downloaded: 420000000, total: 1056782912, active: true }, '*');
+`;
+
 fs.writeFileSync(path.join(__dirname, "../docs/ui/setup.html"), makeHtml(statusSetup));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/chat.html"), makeHtml(statusChat));
-console.log("Wrote docs/ui/setup.html and docs/ui/chat.html");
+fs.writeFileSync(path.join(__dirname, "../docs/ui/download.html"), makeHtml(statusDownload));
+console.log("Wrote docs/ui/setup.html, chat.html, and download.html");

@@ -15,6 +15,7 @@ import {
 } from "./runtimeConfig";
 import { locateQvacRuntime, RuntimeLocation, runQvacDoctor } from "./runtimeLocator";
 import { sanitizeRuntimeLine } from "./sanitize";
+import { catalogModelInfo, findCatalogModelCache } from "./modelCache";
 
 export type RuntimeState = "stopped" | "starting" | "running" | "external" | "stopping" | "error";
 
@@ -57,6 +58,7 @@ export type ProgressReporter = (message: string) => void;
 interface StartOptions {
   signal?: AbortSignal;
   progress?: ProgressReporter;
+  onDownloadProgress?: (downloaded: number, total: number) => void;
 }
 
 interface StopResult {
@@ -427,7 +429,11 @@ export class RuntimeManager implements vscode.Disposable {
       }
     }
 
-    this.startPromise = this.doStart(options.progress, controller.signal)
+    this.startPromise = this.doStart(
+      options.progress,
+      controller.signal,
+      options.onDownloadProgress
+    )
       .catch((error: unknown) => {
         const friendly = toFriendlyError(error);
         if (this.status.state === "starting") {
@@ -459,7 +465,11 @@ export class RuntimeManager implements vscode.Disposable {
     return this.startPromise;
   }
 
-  private async doStart(progress?: ProgressReporter, signal?: AbortSignal): Promise<void> {
+  private async doStart(
+    progress?: ProgressReporter,
+    signal?: AbortSignal,
+    onDownloadProgress?: (downloaded: number, total: number) => void
+  ): Promise<void> {
     let settings: LocalPilotSettings;
     try {
       settings = this.settingsProvider();
@@ -579,6 +589,20 @@ export class RuntimeManager implements vscode.Disposable {
 
     if (signal?.aborted) {
       throw new LocalPilotError("cancelled", "Startup was cancelled.");
+    }
+
+    let downloadState:
+      | { expected: number; cached: boolean }
+      | undefined;
+    if (!settings.modelPath) {
+      const info = catalogModelInfo(settings.modelId);
+      if (info) {
+        const state = await findCatalogModelCache(settings.modelId);
+        downloadState = { expected: info.sizeBytes, cached: state?.cached ?? false };
+        if (!downloadState.cached) {
+          onDownloadProgress?.(state?.bytes ?? 0, info.sizeBytes);
+        }
+      }
     }
 
     const args = [
@@ -707,6 +731,9 @@ export class RuntimeManager implements vscode.Disposable {
             owned: true,
             pid: child.pid
           });
+          if (downloadState && !downloadState.cached) {
+            onDownloadProgress?.(downloadState.expected, downloadState.expected);
+          }
           this.log(`Runtime ready: pid=${child.pid ?? "unknown"} alias=${settings.modelAlias}`);
           return;
         }
@@ -719,6 +746,17 @@ export class RuntimeManager implements vscode.Disposable {
               detail: probe.reason
             }
           );
+        }
+
+        if (downloadState && !downloadState.cached) {
+          const state = await findCatalogModelCache(settings.modelId);
+          if (state) {
+            const downloaded = Math.min(state.bytes, state.expected);
+            onDownloadProgress?.(downloaded, state.expected);
+            if (downloaded >= state.expected * 0.995) {
+              downloadState.cached = true;
+            }
+          }
         }
 
         if (Date.now() - lastProgress > 15000) {
