@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-1wUm8wdDEvYz2CA9I7Fabt3e'; script-src 'nonce-1wUm8wdDEvYz2CA9I7Fabt3e';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-MyICmqfjVZmvGrMbHcBf9XHO'; script-src 'nonce-MyICmqfjVZmvGrMbHcBf9XHO';">
 <title>LocalPilot</title>
-<style nonce="1wUm8wdDEvYz2CA9I7Fabt3e">
+<style nonce="MyICmqfjVZmvGrMbHcBf9XHO">
   :root {
     --bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
     --fg: var(--vscode-sideBar-foreground, var(--vscode-editor-foreground));
@@ -48,6 +48,8 @@
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
   button.power { min-width: 48px; }
+  button.agent { min-width: 46px; font-size: 10px; padding: 2px 6px; }
+  button.agent.active { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
   main { flex: 1; overflow-y: auto; }
   /* Setup */
   .setup { display: flex; justify-content: center; padding: 24px 16px 16px; }
@@ -130,7 +132,7 @@
   .busy-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   [hidden] { display: none !important; }
 </style>
-<style nonce="1wUm8wdDEvYz2CA9I7Fabt3e">
+<style nonce="MyICmqfjVZmvGrMbHcBf9XHO">
   :root {
     --vscode-sideBar-background: #1f1f1f;
     --vscode-sideBar-foreground: #cccccc;
@@ -150,7 +152,7 @@
     --vscode-font-size: 13px;
     background: #1f1f1f;
   }
-</style><script nonce="1wUm8wdDEvYz2CA9I7Fabt3e">
+</style><script nonce="MyICmqfjVZmvGrMbHcBf9XHO">
 window.acquireVsCodeApi = function () {
   return { postMessage: function () {}, getState: function () { return {}; }, setState: function () {} };
 };
@@ -234,13 +236,14 @@ window.addEventListener('load', function () {
     <button id="cancel" hidden>Stop</button>
   </div>
   <div class="footer-row">
+    <button id="agent" class="agent" title="Agent mode: read workspace files and propose edits; every write needs approval. No internet.">Agent</button>
     <span id="model-label"></span>
     <span class="grow"></span>
     <span id="busy-label" class="busy-label"></span>
   </div>
 </footer>
 
-<script nonce="1wUm8wdDEvYz2CA9I7Fabt3e">
+<script nonce="MyICmqfjVZmvGrMbHcBf9XHO">
 (function () {
   const vscode = acquireVsCodeApi();
   const setup = document.getElementById('setup');
@@ -250,6 +253,7 @@ window.addEventListener('load', function () {
   const send = document.getElementById('send');
   const cancel = document.getElementById('cancel');
   const power = document.getElementById('power');
+  const agentButton = document.getElementById('agent');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
   const busyLabel = document.getElementById('busy-label');
@@ -275,6 +279,7 @@ window.addEventListener('load', function () {
   let setupRunning = false;
   let onboarded = false;
   let localPath = '';
+  let agentMode = false;
   let cachedModels = [];
   let cacheDirectory = '';
 
@@ -521,7 +526,7 @@ window.addEventListener('load', function () {
       }
       case 'user': addMessage('user', 'You', m.text); break;
       case 'info':
-      case 'note': addMessage(m.type, '', m.text); break;
+      case 'note': addMessage(m.type, '', m.message || m.text || ''); break;
       case 'error': {
         const e = addMessage('error', 'Error', m.message);
         if (m.hint) {
@@ -597,7 +602,7 @@ window.addEventListener('load', function () {
     if (!text.trim() || busy) return;
     input.value = '';
     input.style.height = 'auto';
-    post({ type: 'send', text });
+    post({ type: 'send', text, agent: agentMode });
   }
   function beginSetup() {
     setupError.hidden = true;
@@ -626,6 +631,14 @@ window.addEventListener('load', function () {
   power.addEventListener('click', () => {
     if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
     else post({ type: 'startRuntime' });
+  });
+  agentButton.addEventListener('click', () => {
+    agentMode = !agentMode;
+    agentButton.classList.toggle('active', agentMode);
+    addMessage('note', '', agentMode
+      ? 'Agent mode ON. LocalPilot can read workspace files and propose edits. Every write requires your approval. No internet access.'
+      : 'Chat mode ON. The model will not use workspace tools.');
+    input.focus();
   });
   send.addEventListener('click', submit);
   input.addEventListener('keydown', (event) => {

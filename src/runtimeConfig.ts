@@ -27,7 +27,7 @@ export interface QvacCatalogServeModel {
   model: string;
   preload: boolean;
   modelFitPolicy: "log";
-  config: { ctx_size: number };
+  config: { ctx_size: number; tools: boolean };
 }
 
 export interface QvacLocalServeModel {
@@ -35,7 +35,7 @@ export interface QvacLocalServeModel {
   type: "llamacpp-completion";
   preload: boolean;
   modelFitPolicy: "log";
-  config: { ctx_size: number };
+  config: { ctx_size: number; tools: boolean };
 }
 
 export type QvacServeModel = QvacCatalogServeModel | QvacLocalServeModel;
@@ -174,7 +174,8 @@ export function buildQvacConfig(settings: LocalPilotSettings): QvacConfigFile {
         preload: true,
         modelFitPolicy: "log",
         config: {
-          ctx_size: settings.contextSize
+          ctx_size: settings.contextSize,
+          tools: true
         }
       }
     : {
@@ -182,7 +183,8 @@ export function buildQvacConfig(settings: LocalPilotSettings): QvacConfigFile {
         preload: true,
         modelFitPolicy: "log",
         config: {
-          ctx_size: settings.contextSize
+          ctx_size: settings.contextSize,
+          tools: true
         }
       };
 

@@ -183,6 +183,18 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.11.0 local Agent mode with file tools (2026-10-26)
+
+- Added an Agent toggle in the chat footer.
+- Added workspace-only tools: `list_files`, `read_file`, `write_file`, `replace_in_file`.
+- Every write/replace opens a diff and waits for explicit **Apply**. Writes use the workspace root only; traversal, `.git`, `node_modules`, and other heavy/destructive paths are rejected; open dirty files must be saved first.
+- Enabled `tools: true` in the generated QVAC model config.
+- Added `QvacClient.chatWithTools` and the agent loop (first step forces a tool choice; later steps are automatic; max 4 steps).
+- Added unit tests for file tools (traversal, approval denial, unique replacement) and QVAC tool-call parsing.
+- Confirmed real QVAC tool calling against the bundled Qwen3-0.6B: a forced `write_file` request returned valid arguments (`{"content":"hi","path":"hello.txt"}`) in 225 s on the loaded CPU host.
+- Agent mode intentionally has no internet, URL-fetch, shell, or command execution tool.
+- Full 0.11.0 Extension Host integration passed: welcome/setup, chat, Explain, managed stop, local GGUF. The Agent write-approval diff is implemented but not automated in CI; Windows execution remains NOT TESTED.
+
 ## 0.10.0 download progress and large-model warnings (2026-10-26)
 
 - Added a reserved model-download progress area to setup: downloaded bytes / expected bytes / percent, driven by the growing `.gguf` file in `~/.qvac/models`.
@@ -324,7 +336,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - GitHub Actions workflow: PASS (clean install, typecheck, 45 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
 - The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and setup. `0.4.0` bundled Node. `0.5.0` bundled full QVAC and the model. `0.6.0` moved model choice to a welcome page. `0.7.0` trims QVAC to the chat/LLM subset to cut download size.
-- Release assets: `localpilot-0.10.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.10.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Release assets: `localpilot-0.11.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.11.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -339,7 +351,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 
 - [x] Current official hackathon rules checked (2026-10-26)
 - [x] Clean dependency install and TypeScript compile pass
-- [x] Unit tests pass (45/45)
+- [x] Unit tests pass (49/49)
 - [x] Activity Bar sidebar view verified in extension host (0.3.0)
 - [x] Private QVAC auto-install module verified with a real 3.3 GB install
 - [x] Windows all-in-one VSIX built with bundled Node and QVAC
@@ -360,7 +372,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.10.0; Windows Node+trimmed QVAC + generic)
+- [x] GitHub Release assets published for download (0.11.0; Windows Node+trimmed QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

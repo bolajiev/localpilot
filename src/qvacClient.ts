@@ -1,3 +1,4 @@
+import { AgentMessage, AgentResult, AgentToolCall, ToolDefinition } from "./agentTypes";
 import { LocalPilotError, toFriendlyError } from "./errors";
 import { ChatMessage } from "./prompts";
 import { ChatDelta, ChatUsage, isDonePayload, parseChatDelta, SseDecoder } from "./sse";
@@ -19,6 +20,10 @@ export interface ChatParams {
   maxTokens: number;
   temperature: number;
   enableReasoning: boolean;
+}
+
+export interface ToolChatParams extends ChatParams {
+  toolChoice?: "auto" | "none" | "required";
 }
 
 export interface ChatDeltaHandler {
@@ -358,6 +363,100 @@ export class QvacClient {
     }
 
     return this.consumeStream(response.body, onDelta, started, combined, signal);
+  }
+
+  public async chatWithTools(
+    messages: AgentMessage[],
+    tools: ToolDefinition[],
+    params: ToolChatParams,
+    signal?: AbortSignal,
+    timeoutMs = 900000
+  ): Promise<AgentResult> {
+    const started = Date.now();
+    const combined = combineSignals(signal, timeoutMs);
+    let response: Response;
+    try {
+      response = await this.fetchImpl(this.modelUrl("/v1/chat/completions"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({
+          model: this.alias,
+          messages,
+          tools,
+          tool_choice: params.toolChoice ?? "auto",
+          parallel_tool_calls: false,
+          stream: false,
+          temperature: params.temperature,
+          max_tokens: params.maxTokens,
+          reasoning_budget: params.enableReasoning
+        }),
+        signal: combined
+      });
+    } catch (error) {
+      throw this.requestFailure(error, combined, signal);
+    }
+
+    if (!response.ok) {
+      const body = await this.readErrorBody(response);
+      throw friendlyHttpError(response.status, serverErrorCode(body), serverErrorMessage(body), this.alias);
+    }
+
+    const body = (await this.readJson(response, 16 * 1024 * 1024)) as {
+      choices?: Array<{
+        message?: {
+          content?: unknown;
+          tool_calls?: unknown;
+        };
+        finish_reason?: unknown;
+      }>;
+      usage?: ChatUsage;
+    };
+    const choice = Array.isArray(body.choices) ? body.choices[0] : undefined;
+    if (!choice?.message) {
+      throw new LocalPilotError("invalid-response", "QVAC returned no assistant message.");
+    }
+    const content = typeof choice.message.content === "string" ? choice.message.content : "";
+    const toolCalls: AgentToolCall[] = [];
+    if (Array.isArray(choice.message.tool_calls)) {
+      for (const value of choice.message.tool_calls) {
+        if (!value || typeof value !== "object") {
+          continue;
+        }
+        const record = value as {
+          id?: unknown;
+          type?: unknown;
+          function?: { name?: unknown; arguments?: unknown };
+        };
+        if (
+          typeof record.id === "string" &&
+          record.type === "function" &&
+          typeof record.function?.name === "string" &&
+          typeof record.function.arguments === "string"
+        ) {
+          toolCalls.push({
+            id: record.id,
+            type: "function",
+            function: {
+              name: record.function.name,
+              arguments: record.function.arguments
+            }
+          });
+        }
+      }
+    }
+    if (!content && toolCalls.length === 0) {
+      throw new LocalPilotError("invalid-response", "QVAC returned neither text nor tool calls.");
+    }
+    return {
+      content,
+      toolCalls,
+      finishReason: typeof choice.finish_reason === "string" ? choice.finish_reason : undefined,
+      usage: body.usage,
+      elapsedMs: Date.now() - started
+    };
   }
 
   public async unloadModel(alias = this.alias, timeoutMs = 12000): Promise<void> {

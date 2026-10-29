@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0 - 2026-10-26
+
+- Added experimental Agent mode in the chat footer.
+- Added workspace tools: list_files, read_file, write_file, replace_in_file.
+- File writes/edits require a diff preview and explicit Apply; paths outside the workspace and destructive traversal are rejected.
+- Enabled QVAC tool calling in the generated model config.
+- Agent mode has no internet, URL-fetch, or shell tool by design.
+- Added unit tests for file tools and QVAC tool-call parsing.
+
 ## 0.10.0 - 2026-10-26
 
 - Added a model download progress bar with downloaded / total size and percent.

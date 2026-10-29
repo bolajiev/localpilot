@@ -263,3 +263,74 @@ test("request timeout aborts a hung local request", async () => {
     }
   );
 });
+
+
+test("chatWithTools returns tool calls and forwards the tool schema", async () => {
+  let body: Record<string, unknown> | undefined;
+  await withServer(
+    (request, response) => {
+      if (request.url === "/v1/chat/completions") {
+        void collectBody(request).then((text) => {
+          body = JSON.parse(text) as Record<string, unknown>;
+        });
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  role: "assistant",
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      type: "function",
+                      function: {
+                        name: "read_file",
+                        arguments: JSON.stringify({ path: "src/a.ts" })
+                      }
+                    }
+                  ]
+                },
+                finish_reason: "tool_calls"
+              }
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
+          })
+        );
+      } else {
+        response.writeHead(404);
+        response.end();
+      }
+    },
+    async ({ url }) => {
+      const client = new QvacClient(url, "localpilot-model");
+      const result = await client.chatWithTools(
+        [{ role: "user", content: "Read src/a.ts" }],
+        [
+          {
+            type: "function",
+            function: {
+              name: "read_file",
+              description: "Read a file",
+              parameters: { type: "object", properties: { path: { type: "string" } } }
+            }
+          }
+        ],
+        { maxTokens: 32, temperature: 0, enableReasoning: false, toolChoice: "required" },
+        undefined,
+        5000
+      );
+      assert.equal(result.toolCalls.length, 1);
+      assert.equal(result.toolCalls[0].function.name, "read_file");
+      assert.equal(result.finishReason, "tool_calls");
+      const requestBody = JSON.parse(await new Promise<string>((resolve) => {
+        const poll = setInterval(() => {
+          if (body) { clearInterval(poll); resolve(JSON.stringify(body)); }
+        }, 10);
+      })) as { tools?: unknown; tool_choice?: string };
+      assert.equal(requestBody.tool_choice, "required");
+      assert.ok(Array.isArray(requestBody.tools));
+    }
+  );
+});

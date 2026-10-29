@@ -4,7 +4,7 @@ import type { CachedModel } from "./modelCache";
 
 export type ChatAction =
   | { type: "ready" }
-  | { type: "send"; text: string }
+  | { type: "send"; text: string; agent?: boolean }
   | { type: "cancel" }
   | { type: "clear" }
   | { type: "startRuntime" }
@@ -190,6 +190,7 @@ export class ChatPanel implements vscode.Disposable {
     const record = raw as {
       type?: unknown;
       text?: unknown;
+      agent?: unknown;
       kind?: unknown;
       modelId?: unknown;
       modelPath?: unknown;
@@ -215,7 +216,9 @@ export class ChatPanel implements vscode.Disposable {
         }
         return { type: "ready" };
       case "send":
-        return typeof record.text === "string" ? { type: "send", text: record.text } : undefined;
+        return typeof record.text === "string"
+          ? { type: "send", text: record.text, agent: record.agent === true }
+          : undefined;
       case "startSetup":
         if (record.kind === "catalog" && typeof record.modelId === "string") {
           return { type: "startSetup", kind: "catalog", modelId: record.modelId };
@@ -304,6 +307,8 @@ function chatHtml(): string {
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
   button.power { min-width: 48px; }
+  button.agent { min-width: 46px; font-size: 10px; padding: 2px 6px; }
+  button.agent.active { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
   main { flex: 1; overflow-y: auto; }
   /* Setup */
   .setup { display: flex; justify-content: center; padding: 24px 16px 16px; }
@@ -447,6 +452,7 @@ function chatHtml(): string {
     <button id="cancel" hidden>Stop</button>
   </div>
   <div class="footer-row">
+    <button id="agent" class="agent" title="Agent mode: read workspace files and propose edits; every write needs approval. No internet.">Agent</button>
     <span id="model-label"></span>
     <span class="grow"></span>
     <span id="busy-label" class="busy-label"></span>
@@ -463,6 +469,7 @@ function chatHtml(): string {
   const send = document.getElementById('send');
   const cancel = document.getElementById('cancel');
   const power = document.getElementById('power');
+  const agentButton = document.getElementById('agent');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
   const busyLabel = document.getElementById('busy-label');
@@ -488,6 +495,7 @@ function chatHtml(): string {
   let setupRunning = false;
   let onboarded = false;
   let localPath = '';
+  let agentMode = false;
   let cachedModels = [];
   let cacheDirectory = '';
 
@@ -734,7 +742,7 @@ function chatHtml(): string {
       }
       case 'user': addMessage('user', 'You', m.text); break;
       case 'info':
-      case 'note': addMessage(m.type, '', m.text); break;
+      case 'note': addMessage(m.type, '', m.message || m.text || ''); break;
       case 'error': {
         const e = addMessage('error', 'Error', m.message);
         if (m.hint) {
@@ -810,7 +818,7 @@ function chatHtml(): string {
     if (!text.trim() || busy) return;
     input.value = '';
     input.style.height = 'auto';
-    post({ type: 'send', text });
+    post({ type: 'send', text, agent: agentMode });
   }
   function beginSetup() {
     setupError.hidden = true;
@@ -839,6 +847,14 @@ function chatHtml(): string {
   power.addEventListener('click', () => {
     if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
     else post({ type: 'startRuntime' });
+  });
+  agentButton.addEventListener('click', () => {
+    agentMode = !agentMode;
+    agentButton.classList.toggle('active', agentMode);
+    addMessage('note', '', agentMode
+      ? 'Agent mode ON. LocalPilot can read workspace files and propose edits. Every write requires your approval. No internet access.'
+      : 'Chat mode ON. The model will not use workspace tools.');
+    input.focus();
   });
   send.addEventListener('click', submit);
   input.addEventListener('keydown', (event) => {

@@ -120,7 +120,33 @@ const statusDownload = `
   window.postMessage({ type: 'downloadProgress', downloaded: 420000000, total: 1056782912, active: true }, '*');
 `;
 
+const statusAgent = `
+  window.postMessage({ type: 'status', status: {
+    state: 'running', label: 'Running', detail: 'Model ready.',
+    endpoint: 'http://127.0.0.1:11434', modelId: 'QWEN3_600M_INST_Q4',
+    modelAlias: 'localpilot-model', owned: true
+  } }, '*');
+  window.postMessage({ type: 'setupConfig', config: {
+    modelId: 'QWEN3_600M_INST_Q4', modelPath: '', onboarded: true
+  } }, '*');
+  window.postMessage({ type: 'mode', mode: 'chat' }, '*');
+  setTimeout(function () {
+    document.getElementById('agent').click();
+    setTimeout(function () {
+      window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function and a small comment.' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent tool: read_file' }, '*');
+      window.postMessage({ type: 'note', message: 'Read src/index.ts (1,204 characters).' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent tool: write_file' }, '*');
+      window.postMessage({ type: 'note', message: 'Waiting for approval: src/add.ts' }, '*');
+      window.postMessage({ type: 'assistantStart', id: 2 }, '*');
+      window.postMessage({ type: 'assistantDelta', id: 2, text: 'I prepared src/add.ts. Review the diff and click Apply to write it to the workspace.' }, '*');
+      window.postMessage({ type: 'assistantEnd', id: 2, meta: { elapsedMs: 8200, completionTokens: 24, finishReason: 'stop' } }, '*');
+    }, 30);
+  }, 20);
+`;
+
 fs.writeFileSync(path.join(__dirname, "../docs/ui/setup.html"), makeHtml(statusSetup));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/chat.html"), makeHtml(statusChat));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/download.html"), makeHtml(statusDownload));
-console.log("Wrote docs/ui/setup.html, chat.html, and download.html");
+fs.writeFileSync(path.join(__dirname, "../docs/ui/agent.html"), makeHtml(statusAgent));
+console.log("Wrote docs/ui/setup.html, chat.html, download.html, and agent.html");

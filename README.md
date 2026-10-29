@@ -2,7 +2,7 @@
 
 LocalPilot is a Windows-first VS Code extension for private, CPU-first local AI coding help using [QVAC](https://qvac.tether.io). It starts a QVAC runtime, preloads one local model, provides a chat view in the VS Code Activity Bar sidebar, and explains only the code you explicitly select.
 
-No cloud inference. No telemetry. No prompt or source-code logging. No automatic file edits. The runtime is bound to loopback.
+No cloud inference. No telemetry. No prompt or source-code logging. Chat is read-only. Agent mode can read workspace files and edit them only after you review a diff and click **Apply**. The runtime is bound to loopback.
 
 Source and releases: **https://github.com/bolajiev/localpilot**
 
@@ -39,6 +39,21 @@ The view is intentionally compact:
 ![LocalPilot chat](docs/ui/chat.png)
 
 If the icon is not visible, right-click the Activity Bar and enable **LocalPilot**, or reload VS Code after installing.
+
+### Agent mode
+
+In the chat footer, click **Agent** to turn on the experimental local coding agent. It has these workspace tools:
+
+- `list_files`
+- `read_file`
+- `write_file`
+- `replace_in_file`
+
+The agent can create or edit files only after it opens a diff and you click **Apply**. It cannot access paths outside the first workspace folder, run shell commands, or access the internet. It does not have a web-search or URL-fetch tool. That is deliberate: the hackathon core remains local, private, and offline-capable.
+
+![LocalPilot Agent mode](docs/ui/agent.png)
+
+Tool calling is enabled in the generated QVAC model config. The 0.6B model is small and tool use on CPU can be slow; Agent mode is experimental. Chat remains the default mode.
 
 ## Features and commands
 
@@ -101,7 +116,7 @@ Require a Vulkan API version of 1.4 or newer. If only an older version is availa
 
 **Download the prebuilt VSIX (recommended):**
 
-Download the latest Windows all-in-one `localpilot-0.10.0-win32-x64.vsix` from:
+Download the latest Windows all-in-one `localpilot-0.11.0-win32-x64.vsix` from:
 
 ```text
 https://github.com/bolajiev/localpilot/releases/latest
@@ -110,12 +125,12 @@ https://github.com/bolajiev/localpilot/releases/latest
 Then install it:
 
 ```powershell
-code --install-extension .\localpilot-0.10.0-win32-x64.vsix
+code --install-extension .\localpilot-0.11.0-win32-x64.vsix
 ```
 
 Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
 
-The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.10.0.vsix` is for development/other platforms and requires a system Node.js.
+The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.11.0.vsix` is for development/other platforms and requires a system Node.js.
 
 **Build from source instead:**
 
@@ -123,7 +138,7 @@ The `win32-x64` asset is the recommended Windows package: it contains Node and Q
 npm ci
 npm run check
 npm run package
-code --install-extension .\localpilot-0.10.0.vsix
+code --install-extension .\localpilot-0.11.0.vsix
 ```
 
 For development, open the folder in VS Code and press **F5** to launch the Extension Development Host. The `preLaunchTask` compiles TypeScript.
@@ -184,6 +199,7 @@ The repository includes `scripts/offline-test.sh` for Linux CI. It starts QVAC i
 - LocalPilot never logs prompt text, selected code, or model output. The diagnostics channel logs status metadata and sanitized QVAC lines; lines containing content/message/prompt/code/input fields are dropped.
 - Model output is displayed as text only. LocalPilot does not write it to files or execute it.
 - Chat prompts and selections stay in extension memory. QVAC itself writes model files to `~/.qvac/models` and KV-cache data to `~/.qvac/kv-cache`.
+- Agent tools read only the workspace folder. Proposed diffs are written to a temporary folder for review; file writes happen only after **Apply**.
 - The loopback server has no API key by default. Other processes running as your user could call it. Stop the runtime when not needed.
 
 ## Model choices and loading a model you already have
@@ -302,7 +318,7 @@ npm test
 npm run check
 ```
 
-`npm test` runs 45 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
+`npm test` runs 49 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
 
 Linux extension-host integration test (downloads a VS Code test build on first run):
 
@@ -360,7 +376,9 @@ Recommended track: **Offline AI apps**.
 
 - Windows execution is unverified in this repository. The Vulkan 1.4 gate is the highest-risk Windows blocker.
 - CPU latency is high in the shared CI environment; measure the target PC.
-- One active model and alias. The model chooser rewrites the config and restarts the runtime; there is no multi-model routing, RAG, embeddings, agent loop, or automatic file edit.
+- One active model and alias. There is no multi-model routing, RAG, or embeddings.
+- Agent mode is bounded to workspace file tools. It has no shell/command execution, no internet lookup, and no autonomous writes; every file change needs diff approval. It uses the first workspace folder in multi-root workspaces.
+- The 0.6B model's tool-call reliability varies; Agent mode is experimental.
 - The Windows VSIX bundles a chat-only subset of QVAC to keep the download small (about 257 MB). Image/speech/translation QVAC addons are not included; install full QVAC separately if you need those (LocalPilot only uses chat).
 - The model is not bundled; the welcome page downloads/loads the user's choice.
 - Vulkan 1.4 remains a system driver prerequisite; the extension cannot install GPU drivers.

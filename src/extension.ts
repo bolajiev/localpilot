@@ -1,4 +1,6 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import * as vscode from "vscode";
 import {
   ChatAction,
@@ -7,9 +9,12 @@ import {
   LocalPilotChatViewProvider,
   SetupConfig
 } from "./chatView";
+import { AgentMessage } from "./agentTypes";
+import { AgentTools } from "./agentTools";
 import { LocalPilotError, toFriendlyError } from "./errors";
 import { ChatResult, QvacClient } from "./qvacClient";
 import {
+  AGENT_SYSTEM_PROMPT,
   assertChatInput,
   buildExplainMessages,
   CHAT_SYSTEM_PROMPT,
@@ -305,7 +310,158 @@ async function ensureRuntime(fromPanel: boolean): Promise<boolean> {
   return startRuntimeInteractive(fromPanel);
 }
 
-async function handleSend(rawText: string): Promise<void> {
+function workspaceRoot(): string | undefined {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+
+async function reviewAgentChange(
+  relativePath: string,
+  oldContent: string,
+  newContent: string,
+  isNew: boolean
+): Promise<boolean> {
+  const root = workspaceRoot();
+  if (!root) {
+    void vscode.window.showWarningMessage("Open a workspace folder before using Agent mode.");
+    return false;
+  }
+  const absolute = path.resolve(root, relativePath);
+  const dirty = vscode.workspace.textDocuments.find(
+    (document) => document.uri.fsPath === absolute && document.isDirty
+  );
+  if (dirty) {
+    void vscode.window.showWarningMessage(
+      `Save ${relativePath} before applying LocalPilot changes.`
+    );
+    return false;
+  }
+
+  const previewDir = path.join(os.tmpdir(), "localpilot-agent-preview");
+  await fs.mkdir(previewDir, { recursive: true });
+  const stamp = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const originalFile = path.join(previewDir, `${stamp}-original.txt`);
+  const proposedFile = path.join(previewDir, `${stamp}-proposed.txt`);
+  await fs.writeFile(originalFile, oldContent, "utf8");
+  await fs.writeFile(proposedFile, newContent, "utf8");
+  await vscode.commands.executeCommand(
+    "vscode.diff",
+    vscode.Uri.file(originalFile),
+    vscode.Uri.file(proposedFile),
+    `LocalPilot proposal: ${relativePath}${isNew ? " (new file)" : ""}`,
+    { preview: true }
+  );
+  const choice = await vscode.window.showWarningMessage(
+    `Apply LocalPilot changes to ${relativePath}? The preview is read-only for review; edits in the preview are not applied.`,
+    "Apply",
+    "Cancel"
+  );
+  return choice === "Apply";
+}
+
+async function runAgentRequest(view: ChatPanel, text: string): Promise<void> {
+  const settings = readSettings();
+  const root = workspaceRoot();
+  if (!root) {
+    view.addError(
+      "Agent mode needs an open workspace folder.",
+      "Open a folder in VS Code, then retry. Agent tools only access that folder."
+    );
+    return;
+  }
+
+  const controller = new AbortController();
+  requestAbort = controller;
+  busy = true;
+  view.appendUser(text);
+  view.setBusy(true, "Agent is working…", true);
+  const started = Date.now();
+
+  try {
+    const tools = new AgentTools(root, reviewAgentChange);
+    const history = conversation.slice(-8);
+    const messages: AgentMessage[] = [
+      {
+        role: "system",
+        content: `${AGENT_SYSTEM_PROMPT}\nWorkspace root: ${root}\nAll tool paths must be relative to the workspace root.`
+      },
+      ...history.map((message) => ({
+        role: message.role as "user" | "assistant",
+        content: message.content
+      })),
+      { role: "user", content: text }
+    ];
+    const client = runtime().createClient(settings);
+    let finalContent = "";
+
+    for (let step = 0; step < 4; step += 1) {
+      view.setBusy(true, `Agent step ${step + 1} of 4…`, true);
+      const result = await client.chatWithTools(
+        messages,
+        tools.definitions(),
+        {
+          maxTokens: settings.maxOutputTokens,
+          temperature: 0.1,
+          enableReasoning: false,
+          toolChoice: step === 0 ? "required" : "auto"
+        },
+        controller.signal,
+        settings.requestTimeoutMs
+      );
+      log(
+        `agent step=${step + 1} toolCalls=${result.toolCalls.length} elapsedMs=${result.elapsedMs}`
+      );
+      if (result.toolCalls.length === 0) {
+        finalContent = result.content.trim();
+        break;
+      }
+
+      messages.push({
+        role: "assistant",
+        content: result.content || null,
+        tool_calls: result.toolCalls
+      });
+      for (const call of result.toolCalls) {
+        view.addNote(`Agent tool: ${call.function.name}`);
+        const outcome = await tools.execute(call.function.name, call.function.arguments);
+        view.addNote(outcome.summary);
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: outcome.ok ? outcome.content : `ERROR: ${outcome.content}`
+        });
+      }
+    }
+
+    if (!finalContent) {
+      finalContent = "The agent completed its tool steps without a final summary.";
+    }
+    const assistantId = view.beginAssistant();
+    view.appendAssistantDelta(assistantId, finalContent);
+    view.endAssistant(assistantId, { elapsedMs: Date.now() - started });
+    appendConversation(
+      { role: "user", content: text },
+      { role: "assistant", content: finalContent }
+    );
+    log(`agent completed model=${settings.modelAlias} elapsedMs=${Date.now() - started}`);
+  } catch (error) {
+    const friendly = toFriendlyError(error);
+    if (friendly.code === "cancelled") {
+      view.addNote("Agent stopped. Any unapproved changes were discarded.");
+      log(`agent cancelled elapsedMs=${Date.now() - started}`);
+    } else {
+      reportError(friendly, true);
+      log(`agent failed code=${friendly.code} elapsedMs=${Date.now() - started}`);
+    }
+  } finally {
+    if (requestAbort === controller) {
+      requestAbort = undefined;
+    }
+    busy = false;
+    view.setBusy(false, "", false);
+  }
+}
+
+async function handleSend(rawText: string, agent = false): Promise<void> {
   const view = await showChatSurface(false);
   if (busy) {
     view.restoreInput(rawText);
@@ -328,6 +484,12 @@ async function handleSend(rawText: string): Promise<void> {
     const ready = await ensureRuntime(true);
     if (!ready) {
       view.restoreInput(rawText);
+      return;
+    }
+
+    if (agent) {
+      busy = false;
+      await runAgentRequest(view, text);
       return;
     }
 
@@ -955,7 +1117,7 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
   try {
     switch (action.type) {
       case "send":
-        await handleSend(action.text);
+        await handleSend(action.text, action.agent === true);
         break;
       case "cancel":
         cancelRequest();

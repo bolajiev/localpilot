@@ -24,6 +24,16 @@ export const EXPLAIN_SYSTEM_PROMPT = [
   "Do not rewrite the code unless the user asks. Be concise: at most 200 words."
 ].join(" ");
 
+export const AGENT_SYSTEM_PROMPT = [
+  "You are LocalPilot Agent, a coding agent running locally in VS Code.",
+  "You can inspect the open workspace with the provided file tools and propose file changes.",
+  "Use tools instead of guessing. Read relevant files before editing.",
+  "Keep changes small and focused. Every write or replacement requires explicit user approval.",
+  "Do not claim a change was applied unless the tool result says it was applied.",
+  "You cannot access the internet, run shell commands, or access files outside the workspace.",
+  "When finished, briefly summarize what changed."
+].join(" ");
+
 export function assertChatInput(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) {
