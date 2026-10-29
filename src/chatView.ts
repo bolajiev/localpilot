@@ -528,10 +528,22 @@ function chatHtml(): string {
     switch (m.type) {
       case 'status': {
         const s = m.status;
+        const labels = {
+          running: 'Running',
+          external: 'External',
+          starting: 'Starting',
+          stopping: 'Stopping',
+          stopped: 'Stopped',
+          error: 'Error'
+        };
+        const names = {
+          QWEN3_600M_INST_Q4: 'Qwen3 0.6B',
+          QWEN3_1_7B_INST_Q4: 'Qwen3 1.7B'
+        };
         status.className = 'status ' + s.state;
-        status.title = s.detail || '';
-        statusLabel.textContent = s.label;
-        modelLabel.textContent = s.modelAlias ? s.modelAlias : '';
+        status.title = s.detail || s.label || '';
+        statusLabel.textContent = labels[s.state] || s.label;
+        modelLabel.textContent = names[s.modelId] || s.modelAlias || '';
         const active = s.state === 'running' || s.state === 'external';
         setupActive = active;
         updateSetup();

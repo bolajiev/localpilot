@@ -51,8 +51,8 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Model source | `unsloth/Qwen3-0.6B-GGUF` commit `50968a4468ef4233ed78cd7c3de230dd1d61a56b` |
 | Model license | Apache-2.0 |
 | QVAC integration files | `src/runtimeLocator.ts`, `src/runtimeManager.ts`, `src/qvacClient.ts`, `src/runtimeConfig.ts` |
-| LocalPilot version | `0.7.0` |
-| Windows package | `localpilot-0.7.0-win32-x64.vsix` (~257 MB; Node.js + chat-only QVAC runtime; model chosen/downloaded on welcome page) |
+| LocalPilot version | `0.8.0` |
+| Windows package | `localpilot-0.8.0-win32-x64.vsix` (~257 MB; Node.js + chat-only QVAC runtime; model chosen/downloaded on welcome page) |
 | Model loading | Curated catalog download or user-supplied local `.gguf` path |
 | UX | Activity Bar sidebar; one-click QVAC + model setup |
 | Extension host | VS Code 1.95+ |
@@ -76,7 +76,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Windows VSIX install/smoke test | NOT TESTED | VSIX built on Linux; cross-platform package not run on Windows |
 | Demo video with network off | NOT DONE | Must be recorded by the submitter on the target device |
 | Repository link | PASS | https://github.com/bolajiev/localpilot |
-| Windows all-in-one download | PASS | `localpilot-0.7.0-win32-x64.vsix` (Node + trimmed QVAC; model chosen at setup) |
+| Windows all-in-one download | PASS | `localpilot-0.8.0-win32-x64.vsix` (Node + trimmed QVAC; model chosen at setup) |
 | GitHub Actions CI | PASS | Build/test/package workflow succeeded; VSIX artifact uploaded |
 | Clean install/typecheck/unit tests | PASS | 43 unit tests, TypeScript, generic/win32 VSIX |
 | Extension Host integration | PASS (Linux) | Start, check, chat, explain command, stop, error paths |

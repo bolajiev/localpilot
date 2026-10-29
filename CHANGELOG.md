@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0 - 2026-10-26
+
+- Polished the minimal sidebar UI: compact status labels ("Running", "Stopped"), friendly model label, and cleaner header actions.
+- Added rendered UI previews for setup, chat, and Activity Bar placement.
+- No change to the 0.7.0 trimmed QVAC bundle or model-download behavior.
+
 ## 0.7.0 - 2026-10-26
 
 - Trimmed the bundled Windows QVAC runtime to the chat/LLM components and Vulkan/CPU backends.

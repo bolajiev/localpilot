@@ -17,3 +17,4 @@ node_modules/typescript/**
 node_modules/@vscode/**
 .github/**
 .vscodeignore*
+docs/ui/*.html

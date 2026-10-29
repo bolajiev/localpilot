@@ -19,6 +19,24 @@ The complete extension was built, packaged, and exercised against a **real QVAC 
 
 Measured results and the full acceptance matrix are in [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md).
 
+## UI and placement
+
+LocalPilot contributes its own **Activity Bar** icon (the robot). The view opens in VS Code's **Primary Side Bar**, to the right of the Activity Bar on the default left layout. It does not float over the editor or open an editor tab. VS Code's **Workbench > Side Bar Location** setting controls whether the Side Bar is on the left or right; the extension follows it.
+
+![LocalPilot position](docs/ui/position.png)
+
+The view is intentionally compact:
+
+- **Header:** status and actions (**Start/Stop**, **Model**, **Settings**).
+- **Middle:** the welcome/setup page, then the chat transcript after setup.
+- **Bottom:** the message composer, fixed above the status line.
+
+![LocalPilot setup](docs/ui/setup.png)
+
+![LocalPilot chat](docs/ui/chat.png)
+
+If the icon is not visible, right-click the Activity Bar and enable **LocalPilot**, or reload VS Code after installing.
+
 ## Features and commands
 
 | Command | Behavior |
@@ -80,7 +98,7 @@ Require a Vulkan API version of 1.4 or newer. If only an older version is availa
 
 **Download the prebuilt VSIX (recommended):**
 
-Download the latest Windows all-in-one `localpilot-0.7.0-win32-x64.vsix` from:
+Download the latest Windows all-in-one `localpilot-0.8.0-win32-x64.vsix` from:
 
 ```text
 https://github.com/bolajiev/localpilot/releases/latest
@@ -89,12 +107,12 @@ https://github.com/bolajiev/localpilot/releases/latest
 Then install it:
 
 ```powershell
-code --install-extension .\localpilot-0.7.0-win32-x64.vsix
+code --install-extension .\localpilot-0.8.0-win32-x64.vsix
 ```
 
 Or in VS Code: **Extensions** → `...` → **Install from VSIX**.
 
-The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.7.0.vsix` is for development/other platforms and requires a system Node.js.
+The `win32-x64` asset is the recommended Windows package: it contains Node and QVAC. The generic `localpilot-0.8.0.vsix` is for development/other platforms and requires a system Node.js.
 
 **Build from source instead:**
 
@@ -102,7 +120,7 @@ The `win32-x64` asset is the recommended Windows package: it contains Node and Q
 npm ci
 npm run check
 npm run package
-code --install-extension .\localpilot-0.7.0.vsix
+code --install-extension .\localpilot-0.8.0.vsix
 ```
 
 For development, open the folder in VS Code and press **F5** to launch the Extension Development Host. The `preLaunchTask` compiles TypeScript.

@@ -20,3 +20,4 @@ resources/node/**
 .vscodeignore*
 resources/qvac-runtime/**
 resources/models/**
+docs/ui/*.html
