@@ -2,7 +2,7 @@
 
 LocalPilot is a Windows-first VS Code extension for private, CPU-first local AI coding help using [QVAC](https://qvac.tether.io). It starts a QVAC runtime, preloads one local model, provides a chat view in the VS Code Secondary Side Bar, and explains only the code you explicitly select.
 
-No cloud inference. No telemetry. No prompt or source-code logging. Chat is read-only. Agent mode can read workspace files and edit them only after you review a diff and click **Apply**. The runtime is bound to loopback.
+No cloud inference. No telemetry. No prompt or source-code logging. Chat is read-only. Plan mode reads only. Build mode can edit workspace files only after you review a diff and click **Apply**. The runtime is bound to loopback.
 
 Source and releases: **https://github.com/bolajiev/localpilot**
 
@@ -87,7 +87,7 @@ In Plan or Build mode, click **Net** to enable two additional tools:
 
 For the hackathon offline demo, leave **Net** off. That proves the core still works locally; the internet feature is explicitly excluded from the offline demonstration.
 
-Tool calling is enabled in the generated QVAC model config. The 0.6B model is small and tool use on CPU can be slow; Agent mode is experimental. Chat remains the default mode.
+Tool calling is enabled in the generated QVAC model config. The 0.6B model is small and tool use on CPU can be slow; Plan/Build are experimental. Chat remains the default mode.
 
 ## Features and commands
 
@@ -419,7 +419,7 @@ Recommended track: **Offline AI apps**.
 - CPU latency is high in the shared CI environment; measure the target PC.
 - One active model and alias. There is no multi-model routing, RAG, or embeddings.
 - Plan/Build modes are bounded to workspace file tools plus optional Net web search/fetch. They have no shell/command execution and no autonomous writes; every file change needs diff approval. They use the first workspace folder in multi-root workspaces.
-- The 0.6B model's tool-call reliability varies; Agent mode is experimental.
+- The 0.6B model's tool-call reliability varies; Plan/Build are experimental.
 - Internet tools are optional and off by default. When enabled, Agent web search/fetch sends queries/URLs to external services; this is excluded from the offline demo.
 - The Windows VSIX bundles a chat-only subset of QVAC to keep the download small (about 257 MB). Image/speech/translation QVAC addons are not included; install full QVAC separately if you need those (LocalPilot only uses chat).
 - The model is not bundled; the welcome page downloads/loads the user's choice.

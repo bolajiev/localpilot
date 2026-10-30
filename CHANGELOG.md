@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.17.0 - 2026-10-26
+
+- Rebuilt the agent harness around an explicit ReAct loop (`agentLoop.ts`): inspect/observe, call one tool, observe the result, repeat, then summarize.
+- Added ReAct-oriented Build and Plan system prompts with explicit tool/capability rules.
+- Added active editor + referenced file context (capped) so Plan/Build can see the code without guessing.
+- Added `scripts/agent-smoke.js` verification of the real harness; it created `hello.txt` through QVAC.
+- Added a fake-client ReAct loop test; 55 tests total.
+
 ## 0.16.0 - 2026-10-26
 
 - Replaced the ambiguous Agent toggle with explicit **Chat / Plan / Build** modes.

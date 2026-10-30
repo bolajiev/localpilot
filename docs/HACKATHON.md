@@ -45,7 +45,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 
 | Item | Value |
 | --- | --- |
-| QVAC package | `@qvac/cli@0.16.0` (bundles `@qvac/sdk@0.22.0`) |
+| QVAC package | `@qvac/cli@0.17.0` (bundles `@qvac/sdk@0.22.0`) |
 | Runtime mode | `qvac serve --openai --no-default`, loopback `127.0.0.1:11434` |
 | Model | `QWEN3_600M_INST_Q4` (`Qwen3-0.6B-Q4_0.gguf`, 382,156,480 bytes) |
 | Model source | `unsloth/Qwen3-0.6B-GGUF` commit `50968a4468ef4233ed78cd7c3de230dd1d61a56b` |
@@ -63,12 +63,12 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| QVAC CLI installed and doctor run | PASS (Linux) | CLI 0.16.0; `qvac doctor` exit 0, CPU fallback warning |
+| QVAC CLI installed and doctor run | PASS (Linux) | CLI 0.17.0; `qvac doctor` exit 0, CPU fallback warning |
 | Real model loaded and answered | PASS (Linux) | Streaming chat, 5-6 tokens returned |
 | Existing local GGUF loaded and answered | PASS (Linux) | Explicit `src` + `llamacpp-completion`; extension-host integration |
 | Secondary Side Bar (right) | PASS (Linux) | WebviewView resolved and chat/explain commands passed in Extension Host |
 | Automatic QVAC install | PASS (module) | Real 3.3 GB npm install into local storage + managed-runtime resolution; interactive prompt not automated |
-| Windows all-in-one package contents | BUILT | `win32-x64` VSIX contains Node/npm and a trimmed QVAC 0.16.0 LLM runtime; model not bundled; Windows execution NOT TESTED |
+| Windows all-in-one package contents | BUILT | `win32-x64` VSIX contains Node/npm and a trimmed QVAC 0.17.0 LLM runtime; model not bundled; Windows execution NOT TESTED |
 | Welcome/model setup | PASS (Linux) | Setup path started a catalog model; real chat returned `"LocalPilot integration OK."`; webview UI is static-checked |
 | Cached-model discovery | PASS (Linux) | `~/.qvac/models` scan and `Already on this PC` list; unit-covered |
 | Chat layout / latency feedback | PASS (Linux) | User-right/assistant-left layout; first-token timer and cancel; UI static-checked |
@@ -76,7 +76,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Download progress | PASS (Linux) | Fresh Qwen3 download reported 382,156,480 / 382,156,480 bytes; UI bar static-checked |
 | Large-model warning | PASS | Red SLOW flag on 1.7B and cached models over 800 MB |
 | Agent file tools | PASS (module) | list/read/search/write/replace unit-tested; path traversal and denied writes tested |
-| Agent write loop | PASS (real QVAC) | Forced write created hello.txt; follow-up final summary; approval card static-checked |
+| Agent write loop | PASS (real QVAC) | ReAct harness forced write created hello.txt; follow-up final summary; approval card static-checked |
 | Agent tool calling | PASS (direct QVAC test) | Forced write_file tool call returned valid arguments from QVAC; end-to-end approval flow not automated |
 | Optional internet tools | ADDED, OFF BY DEFAULT | Agent Net toggle: web_search + fetch_url; excluded from offline demo |
 | Explain Selected Code with real model | PASS (Linux) | VS Code command integration and offline script |
