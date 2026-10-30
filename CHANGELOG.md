@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.2 - 2026-10-26
+
+- Fixed Build mode classifying explanation questions containing words like “change” or “fix” as file-write requests.
+- Questions starting with what/why/how/explain/describe/review now always use streaming chat; direct commands still use the agent.
+- Added routing regression tests; 57 tests pass.
+
 ## 0.17.1 - 2026-10-26
 
 - Chat mode now streams with active editor context and a direct-answer prompt that avoids capability/tool meta commentary.

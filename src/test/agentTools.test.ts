@@ -162,6 +162,11 @@ test("shouldUseWorkspaceAgent keeps casual Build/Plan chat out of the tool loop"
   const { shouldUseWorkspaceAgent } = await import("../agentPolicy");
   assert.equal(shouldUseWorkspaceAgent("Explain this function", "build"), false);
   assert.equal(shouldUseWorkspaceAgent("What does this code do?", "build"), false);
+  assert.equal(
+    shouldUseWorkspaceAgent("Explain the selected function and how I would change its return type", "build"),
+    false
+  );
+  assert.equal(shouldUseWorkspaceAgent("How do I fix this bug?", "build"), false);
   assert.equal(shouldUseWorkspaceAgent("Explain this function", "plan"), false);
   assert.equal(shouldUseWorkspaceAgent("Create a file src/add.ts with an add function", "build"), true);
   assert.equal(shouldUseWorkspaceAgent("Fix this", "build"), true);

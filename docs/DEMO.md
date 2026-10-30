@@ -73,7 +73,7 @@ Now give me a one-line summary.
 Open a folder and select a small function in the editor. In the LocalPilot Secondary Side Bar:
 
 1. Choose **Build** in the mode selector (leave **Net** off).
-2. Ask: **Explain the selected function and how I would change its return type.**
+2. Ask: **Explain the selected function.**
 3. This is a conversational request, so Build uses normal streaming chat with the selected code. Tokens appear incrementally; no tools or approval card are needed.
 4. Point out that Build can chat without being forced into a file write.
 

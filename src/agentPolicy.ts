@@ -23,7 +23,14 @@ const WORKSPACE_SUBJECT = /\b(file|folder|directory|workspace|project|codebase|r
 const FILE_PATH = /(?:^|[\s`"'(])(?:[\w.-]+[\\/])*[\w.-]+\.(?:ts|tsx|js|jsx|json|md|py|css|html|go|rs|java|c|cpp|h|hpp|cs|php|rb|swift|kt)(?=[\s`"')]|$)/i;
 const EDIT_THIS = /\b(create|write|save|add|edit|modify|update|fix|refactor|change|implement|remove|delete|rename|replace)\b[^.!?\n]{0,40}\b(this|it|selection|snippet|file|code)\b/i;
 
+const QUESTION = /^\s*(what|why|how|explain|describe|tell|summarize|review|compare|is|are|does|do|can you explain|could you explain|help me understand)\b/i;
+
 export function shouldUseWorkspaceAgent(text: string, mode: "plan" | "build"): boolean {
+  // Questions and explanations stay on the streaming chat path. Only direct
+  // workspace actions enter the slow tool loop.
+  if (QUESTION.test(text)) {
+    return false;
+  }
   if (mode === "build" && detectWriteIntent(text).wantsWrite) {
     return true;
   }
