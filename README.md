@@ -42,9 +42,17 @@ The view is intentionally compact:
 
 If the view is not visible, run **LocalPilot: Chat with Local Model**; it focuses the Secondary Side Bar. Reload VS Code after installing.
 
-### Agent mode
+### Chat / Plan / Build modes
 
-In the chat footer, click **Agent** to turn on the experimental local coding agent. It has these workspace tools:
+The chat footer has an explicit mode selector:
+
+- **Chat** — no file tools; plain local chat.
+- **Plan** — read-only workspace tools; reads and searches your code, then proposes a plan. It cannot write.
+- **Build** — read/write workspace tools; every file change needs approval.
+
+Plan and Build automatically include the active editor file or selection (up to 6,000 characters) as local context, so the model can see the code you are looking at. They also have explicit system prompts describing their capabilities and limits.
+
+Build mode has these workspace tools:
 
 - `list_files`
 - `read_file`
@@ -52,21 +60,23 @@ In the chat footer, click **Agent** to turn on the experimental local coding age
 - `write_file`
 - `replace_in_file`
 
-The agent can create or edit files only after it opens a diff and you click **Apply**. It cannot access paths outside the first workspace folder or run shell commands.
+The model can create or edit files only after it opens a diff and you click **Apply**. It cannot access paths outside the first workspace folder or run shell commands.
 
-If you ask for a file change, LocalPilot forces the write/replace tool if the first inspection step only read files, so the model cannot simply answer with code in chat. The footer shows the current agent step and elapsed time; write steps add **Waiting for approval: path**.
+If you ask for a file change, LocalPilot forces the write/replace tool if the first inspection step only read files, so the model cannot simply answer with code in chat. The footer shows the current step and elapsed time; write steps add **Waiting for approval: path**.
 
 An approval card appears **inside the chat** with **Apply/Reject**, and the diff opens for review. The agent waits until you decide. Up to six steps are allowed.
 
-![LocalPilot Agent progress](docs/ui/thinking.png)
+![LocalPilot Plan mode](docs/ui/plan.png)
+
+![LocalPilot Build progress](docs/ui/thinking.png)
 
 ![LocalPilot approval card](docs/ui/approval.png)
 
-![LocalPilot Agent mode](docs/ui/agent.png)
+![LocalPilot Build mode](docs/ui/agent.png)
 
 ### Optional internet tools
 
-In Agent mode, click **Net** to enable two additional tools:
+In Plan or Build mode, click **Net** to enable two additional tools:
 
 - `web_search` (DuckDuckGo)
 - `fetch_url` (public http/https pages only)
@@ -349,7 +359,7 @@ npm test
 npm run check
 ```
 
-`npm test` runs 53 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
+`npm test` runs 54 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
 
 Linux extension-host integration test (downloads a VS Code test build on first run):
 
@@ -408,7 +418,7 @@ Recommended track: **Offline AI apps**.
 - Windows execution is unverified in this repository. The Vulkan 1.4 gate is the highest-risk Windows blocker.
 - CPU latency is high in the shared CI environment; measure the target PC.
 - One active model and alias. There is no multi-model routing, RAG, or embeddings.
-- Agent mode is bounded to workspace file tools plus optional Net web search/fetch. It has no shell/command execution and no autonomous writes; every file change needs diff approval. It uses the first workspace folder in multi-root workspaces.
+- Plan/Build modes are bounded to workspace file tools plus optional Net web search/fetch. They have no shell/command execution and no autonomous writes; every file change needs diff approval. They use the first workspace folder in multi-root workspaces.
 - The 0.6B model's tool-call reliability varies; Agent mode is experimental.
 - Internet tools are optional and off by default. When enabled, Agent web search/fetch sends queries/URLs to external services; this is excluded from the offline demo.
 - The Windows VSIX bundles a chat-only subset of QVAC to keep the download small (about 257 MB). Image/speech/translation QVAC addons are not included; install full QVAC separately if you need those (LocalPilot only uses chat).

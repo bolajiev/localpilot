@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-25f5EpSazbG4OmHXzMqFJ1DQ'; script-src 'nonce-25f5EpSazbG4OmHXzMqFJ1DQ';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-fR5BwAijwoNpO6jMGQYSxwLP'; script-src 'nonce-fR5BwAijwoNpO6jMGQYSxwLP';">
 <title>LocalPilot</title>
-<style nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
+<style nonce="fR5BwAijwoNpO6jMGQYSxwLP">
   :root {
     --bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
     --fg: var(--vscode-sideBar-foreground, var(--vscode-editor-foreground));
@@ -48,8 +48,10 @@
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
   button.power { min-width: 48px; }
-  button.agent { min-width: 46px; font-size: 10px; padding: 2px 6px; }
-  button.agent.active { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+  select.mode {
+    font: inherit; font-size: 10px; color: var(--fg); background: var(--input);
+    border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px;
+  }
   button.net { min-width: 38px; font-size: 10px; padding: 2px 6px; }
   button.net.active { background: var(--error); color: #ffffff; border-color: transparent; font-weight: 600; }
   button.net:disabled { opacity: .35; }
@@ -143,7 +145,7 @@
   .busy-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   [hidden] { display: none !important; }
 </style>
-<style nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
+<style nonce="fR5BwAijwoNpO6jMGQYSxwLP">
   :root {
     --vscode-sideBar-background: #1f1f1f;
     --vscode-sideBar-foreground: #cccccc;
@@ -163,7 +165,7 @@
     --vscode-font-size: 13px;
     background: #1f1f1f;
   }
-</style><script nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
+</style><script nonce="fR5BwAijwoNpO6jMGQYSxwLP">
 window.acquireVsCodeApi = function () {
   return { postMessage: function () {}, getState: function () { return {}; }, setState: function () {} };
 };
@@ -252,7 +254,11 @@ window.addEventListener('load', function () {
     <button id="cancel" hidden>Stop</button>
   </div>
   <div class="footer-row">
-    <button id="agent" class="agent" title="Agent mode: read workspace files and propose edits; every write needs approval.">Agent</button>
+    <select id="mode" class="mode" title="Chat: no file tools. Plan: read-only workspace tools. Build: read/write with approval.">
+      <option value="chat">Chat</option>
+      <option value="plan">Plan</option>
+      <option value="build">Build</option>
+    </select>
     <button id="net" class="net" title="Internet tools: web search and URL fetch. Off by default; sends queries off this machine.">Net</button>
     <span id="model-label"></span>
     <span class="grow"></span>
@@ -260,7 +266,7 @@ window.addEventListener('load', function () {
   </div>
 </footer>
 
-<script nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
+<script nonce="fR5BwAijwoNpO6jMGQYSxwLP">
 (function () {
   const vscode = acquireVsCodeApi();
   const setup = document.getElementById('setup');
@@ -270,7 +276,7 @@ window.addEventListener('load', function () {
   const send = document.getElementById('send');
   const cancel = document.getElementById('cancel');
   const power = document.getElementById('power');
-  const agentButton = document.getElementById('agent');
+  const modeSelect = document.getElementById('mode');
   const netButton = document.getElementById('net');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
@@ -297,7 +303,7 @@ window.addEventListener('load', function () {
   let setupRunning = false;
   let onboarded = false;
   let localPath = '';
-  let agentMode = false;
+  let chatMode = 'chat';
   let netMode = false;
   let cachedModels = [];
   let cacheDirectory = '';
@@ -688,7 +694,7 @@ window.addEventListener('load', function () {
     if (!text.trim() || busy) return;
     input.value = '';
     input.style.height = 'auto';
-    post({ type: 'send', text, agent: agentMode, web: netMode });
+    post({ type: 'send', text, mode: chatMode, web: netMode });
   }
   function beginSetup() {
     setupError.hidden = true;
@@ -719,27 +725,29 @@ window.addEventListener('load', function () {
     if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
     else post({ type: 'startRuntime' });
   });
-  function updateAgentUi() {
-    agentButton.classList.toggle('active', agentMode);
-    netButton.disabled = !agentMode;
-    if (!agentMode) netMode = false;
+  function updateModeUi() {
+    netButton.disabled = chatMode === 'chat';
+    if (chatMode === 'chat') netMode = false;
     netButton.classList.toggle('active', netMode);
   }
-  agentButton.addEventListener('click', () => {
-    agentMode = !agentMode;
-    if (!agentMode) netMode = false;
-    updateAgentUi();
-    addMessage('note', '', agentMode
-      ? 'Agent mode ON. LocalPilot can read workspace files and propose edits. Every write requires your approval. Internet is off unless you enable Net.'
-      : 'Chat mode ON. The model will not use workspace tools or internet.');
+  modeSelect.addEventListener('change', () => {
+    chatMode = modeSelect.value;
+    if (chatMode === 'chat') netMode = false;
+    updateModeUi();
+    const messages = {
+      chat: 'Chat mode: no file tools. Use Plan or Build for workspace context.',
+      plan: 'Plan mode: read-only workspace tools. LocalPilot can read/search your code and propose a plan, but cannot edit files.',
+      build: 'Build mode: workspace read/write tools. Every file change requires the in-chat Apply approval. Internet is off unless you enable Net.'
+    };
+    addMessage('note', '', messages[chatMode] || messages.chat);
     input.focus();
   });
   netButton.addEventListener('click', () => {
     netMode = !netMode;
-    updateAgentUi();
+    updateModeUi();
     addMessage('note', '', netMode
-      ? 'Internet ON. Agent requests may send search queries/URLs off this machine. Web content is untrusted. Turn Net off for the offline demo.'
-      : 'Internet OFF. Agent tools are local-only.');
+      ? 'Internet ON. Plan/Build requests may send search queries/URLs off this machine. Web content is untrusted. Turn Net off for the offline demo.'
+      : 'Internet OFF. Workspace tools are local-only.');
     input.focus();
   });
   send.addEventListener('click', submit);
@@ -752,7 +760,7 @@ window.addEventListener('load', function () {
   });
   cancel.addEventListener('click', () => post({ type: 'cancel' }));
   updateSetup();
-  updateAgentUi();
+  updateModeUi();
   post({ type: 'ready' });
 })();
 </script>

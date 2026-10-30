@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.0 - 2026-10-26
+
+- Replaced the ambiguous Agent toggle with explicit **Chat / Plan / Build** modes.
+- Plan mode has read-only workspace tools and cannot write; Build mode has read/write tools with approval.
+- Plan and Build include the active editor file or selection as local context.
+- Added explicit Plan/Build system prompts describing capabilities and limits.
+- Added a read-only AgentTools test; 54 tests total.
+
 ## 0.15.0 - 2026-10-26
 
 - Agent writes now show an in-chat **Apply/Reject** approval card; the diff opens automatically for review.

@@ -4,7 +4,7 @@ import type { CachedModel } from "./modelCache";
 
 export type ChatAction =
   | { type: "ready" }
-  | { type: "send"; text: string; agent?: boolean; web?: boolean }
+  | { type: "send"; text: string; mode: "chat" | "plan" | "build"; web?: boolean }
   | { type: "cancel" }
   | { type: "clear" }
   | { type: "startRuntime" }
@@ -200,7 +200,7 @@ export class ChatPanel implements vscode.Disposable {
     const record = raw as {
       type?: unknown;
       text?: unknown;
-      agent?: unknown;
+      mode?: unknown;
       web?: unknown;
       kind?: unknown;
       id?: unknown;
@@ -233,7 +233,10 @@ export class ChatPanel implements vscode.Disposable {
           ? {
               type: "send",
               text: record.text,
-              agent: record.agent === true,
+              mode:
+                record.mode === "plan" || record.mode === "build"
+                  ? record.mode
+                  : "chat",
               web: record.web === true
             }
           : undefined;
@@ -330,8 +333,10 @@ function chatHtml(): string {
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
   button.power { min-width: 48px; }
-  button.agent { min-width: 46px; font-size: 10px; padding: 2px 6px; }
-  button.agent.active { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+  select.mode {
+    font: inherit; font-size: 10px; color: var(--fg); background: var(--input);
+    border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px;
+  }
   button.net { min-width: 38px; font-size: 10px; padding: 2px 6px; }
   button.net.active { background: var(--error); color: #ffffff; border-color: transparent; font-weight: 600; }
   button.net:disabled { opacity: .35; }
@@ -490,7 +495,11 @@ function chatHtml(): string {
     <button id="cancel" hidden>Stop</button>
   </div>
   <div class="footer-row">
-    <button id="agent" class="agent" title="Agent mode: read workspace files and propose edits; every write needs approval.">Agent</button>
+    <select id="mode" class="mode" title="Chat: no file tools. Plan: read-only workspace tools. Build: read/write with approval.">
+      <option value="chat">Chat</option>
+      <option value="plan">Plan</option>
+      <option value="build">Build</option>
+    </select>
     <button id="net" class="net" title="Internet tools: web search and URL fetch. Off by default; sends queries off this machine.">Net</button>
     <span id="model-label"></span>
     <span class="grow"></span>
@@ -508,7 +517,7 @@ function chatHtml(): string {
   const send = document.getElementById('send');
   const cancel = document.getElementById('cancel');
   const power = document.getElementById('power');
-  const agentButton = document.getElementById('agent');
+  const modeSelect = document.getElementById('mode');
   const netButton = document.getElementById('net');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
@@ -535,7 +544,7 @@ function chatHtml(): string {
   let setupRunning = false;
   let onboarded = false;
   let localPath = '';
-  let agentMode = false;
+  let chatMode = 'chat';
   let netMode = false;
   let cachedModels = [];
   let cacheDirectory = '';
@@ -926,7 +935,7 @@ function chatHtml(): string {
     if (!text.trim() || busy) return;
     input.value = '';
     input.style.height = 'auto';
-    post({ type: 'send', text, agent: agentMode, web: netMode });
+    post({ type: 'send', text, mode: chatMode, web: netMode });
   }
   function beginSetup() {
     setupError.hidden = true;
@@ -957,27 +966,29 @@ function chatHtml(): string {
     if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
     else post({ type: 'startRuntime' });
   });
-  function updateAgentUi() {
-    agentButton.classList.toggle('active', agentMode);
-    netButton.disabled = !agentMode;
-    if (!agentMode) netMode = false;
+  function updateModeUi() {
+    netButton.disabled = chatMode === 'chat';
+    if (chatMode === 'chat') netMode = false;
     netButton.classList.toggle('active', netMode);
   }
-  agentButton.addEventListener('click', () => {
-    agentMode = !agentMode;
-    if (!agentMode) netMode = false;
-    updateAgentUi();
-    addMessage('note', '', agentMode
-      ? 'Agent mode ON. LocalPilot can read workspace files and propose edits. Every write requires your approval. Internet is off unless you enable Net.'
-      : 'Chat mode ON. The model will not use workspace tools or internet.');
+  modeSelect.addEventListener('change', () => {
+    chatMode = modeSelect.value;
+    if (chatMode === 'chat') netMode = false;
+    updateModeUi();
+    const messages = {
+      chat: 'Chat mode: no file tools. Use Plan or Build for workspace context.',
+      plan: 'Plan mode: read-only workspace tools. LocalPilot can read/search your code and propose a plan, but cannot edit files.',
+      build: 'Build mode: workspace read/write tools. Every file change requires the in-chat Apply approval. Internet is off unless you enable Net.'
+    };
+    addMessage('note', '', messages[chatMode] || messages.chat);
     input.focus();
   });
   netButton.addEventListener('click', () => {
     netMode = !netMode;
-    updateAgentUi();
+    updateModeUi();
     addMessage('note', '', netMode
-      ? 'Internet ON. Agent requests may send search queries/URLs off this machine. Web content is untrusted. Turn Net off for the offline demo.'
-      : 'Internet OFF. Agent tools are local-only.');
+      ? 'Internet ON. Plan/Build requests may send search queries/URLs off this machine. Web content is untrusted. Turn Net off for the offline demo.'
+      : 'Internet OFF. Workspace tools are local-only.');
     input.focus();
   });
   send.addEventListener('click', submit);
@@ -990,7 +1001,7 @@ function chatHtml(): string {
   });
   cancel.addEventListener('click', () => post({ type: 'cancel' }));
   updateSetup();
-  updateAgentUi();
+  updateModeUi();
   post({ type: 'ready' });
 })();
 </script>

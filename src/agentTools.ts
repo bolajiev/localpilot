@@ -43,6 +43,7 @@ function displayPath(relativePath: string): string {
 
 export interface AgentToolOptions {
   webEnabled?: boolean;
+  readOnly?: boolean;
   fetchImpl?: typeof fetch;
 }
 
@@ -147,6 +148,7 @@ export function parseDuckDuckGoResults(html: string, limit = 5): WebSearchResult
 export class AgentTools {
   private readonly root: string;
   private readonly webEnabled: boolean;
+  private readonly readOnly: boolean;
   private readonly fetchImpl: typeof fetch;
 
   public constructor(
@@ -156,6 +158,7 @@ export class AgentTools {
   ) {
     this.root = path.resolve(workspaceRoot);
     this.webEnabled = options.webEnabled === true;
+    this.readOnly = options.readOnly === true;
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
@@ -234,8 +237,14 @@ export class AgentTools {
         }
       }
     ];
+    const visible = this.readOnly
+      ? definitions.filter(
+          (tool) =>
+            tool.function.name !== "write_file" && tool.function.name !== "replace_in_file"
+        )
+      : definitions;
     if (this.webEnabled) {
-      definitions.push(
+      visible.push(
         {
           type: "function",
           function: {
@@ -266,7 +275,7 @@ export class AgentTools {
         }
       );
     }
-    return definitions;
+    return visible;
   }
 
   public async execute(name: string, rawArguments: string): Promise<ToolOutcome> {
@@ -275,6 +284,17 @@ export class AgentTools {
       args = rawArguments.trim() ? (JSON.parse(rawArguments) as Record<string, unknown>) : {};
     } catch {
       return { ok: false, content: "Invalid JSON tool arguments.", summary: `Invalid arguments for ${name}.` };
+    }
+
+    if (
+      this.readOnly &&
+      (name === "write_file" || name === "replace_in_file")
+    ) {
+      return {
+        ok: false,
+        content: "Plan mode is read-only. Switch to Build mode to make file changes.",
+        summary: "Blocked a write in Plan mode."
+      };
     }
 
     try {

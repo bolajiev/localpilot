@@ -72,7 +72,7 @@ Now give me a one-line summary.
 
 Open a folder in VS Code. In the LocalPilot Secondary Side Bar:
 
-1. Click **Agent** (leave **Net** off).
+1. Choose **Build** in the mode selector (leave **Net** off).
 2. Ask: **Create src/demo-add.ts with a small add function and a comment.**
 3. The footer shows `Agent step …` and a timer; tool activity appears in chat.
 4. When the red **Create file — approval required** card appears, review the diff and click **Apply**.

@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-fR5BwAijwoNpO6jMGQYSxwLP'; script-src 'nonce-fR5BwAijwoNpO6jMGQYSxwLP';">
+<title>LocalPilot</title>
+<style nonce="fR5BwAijwoNpO6jMGQYSxwLP">
+  :root {
+    --bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    --fg: var(--vscode-sideBar-foreground, var(--vscode-editor-foreground));
+    --muted: var(--vscode-descriptionForeground);
+    --line: var(--vscode-panel-border, rgba(127,127,127,.25));
+    --input: var(--vscode-input-background);
+    --input-fg: var(--vscode-input-foreground);
+    --accent: var(--vscode-button-background);
+    --accent-fg: var(--vscode-button-foreground);
+    --code: var(--vscode-textCodeBlock-background);
+    --error: var(--vscode-errorForeground);
+    --ok: var(--vscode-testing-iconPassed, #3fb950);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-bottom: 1px solid var(--line); flex: none;
+  }
+  .brand { font-weight: 600; font-size: 12px; letter-spacing: .2px; white-space: nowrap; }
+  .status { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--muted); font-size: 11px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex: none; }
+  .status.running .dot, .status.external .dot { background: var(--ok); }
+  .status.starting .dot, .status.stopping .dot { background: #d7a94b; animation: pulse 1.1s infinite; }
+  .status.error .dot { background: var(--error); }
+  .status-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .grow { flex: 1; }
+  button {
+    font: inherit; font-size: 11px; color: var(--fg);
+    background: transparent; border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 8px; cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+  button.power { min-width: 48px; }
+  select.mode {
+    font: inherit; font-size: 10px; color: var(--fg); background: var(--input);
+    border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px;
+  }
+  button.net { min-width: 38px; font-size: 10px; padding: 2px 6px; }
+  button.net.active { background: var(--error); color: #ffffff; border-color: transparent; font-weight: 600; }
+  button.net:disabled { opacity: .35; }
+  main { flex: 1; overflow-y: auto; }
+  /* Setup */
+  .setup { display: flex; justify-content: center; padding: 24px 16px 16px; }
+  .setup-inner { width: 100%; max-width: 380px; }
+  h1 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+  .sub { margin: 0 0 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .options { border-top: 1px solid var(--line); margin-bottom: 14px; }
+  .option {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 11px 2px; border-bottom: 1px solid var(--line); cursor: pointer;
+  }
+  .option input { margin: 2px 0 0; accent-color: var(--vscode-focusBorder); }
+  .option > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .option strong { font-weight: 500; font-size: 12px; }
+  .option small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+  .option small.warn { color: var(--error); }
+  .flag { display: inline-block; border: 1px solid currentColor; border-radius: 2px; padding: 0 3px; font-size: 9px; margin-left: 4px; letter-spacing: .3px; vertical-align: 1px; }
+  .option.disabled { opacity: .55; cursor: default; }
+  .setup-actions { display: flex; flex-direction: column; gap: 8px; }
+  .setup-actions button { padding: 6px 10px; font-size: 12px; }
+  .setup-actions button.primary { padding: 7px 10px; }
+  .setup-note { color: var(--muted); font-size: 10px; line-height: 1.45; margin: 14px 0 0; }
+  .progress { min-height: 32px; margin: 2px 0 8px; visibility: hidden; }
+  .progress.active { visibility: visible; }
+  .download-bar { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  #download-fill { width: 0%; height: 100%; background: var(--accent); transition: width .2s ease; }
+  .progress.indeterminate #download-fill { width: 100%; animation: progress-pulse 1.2s infinite; }
+  .download-label { color: var(--muted); font-size: 10px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @keyframes progress-pulse { 50% { opacity: .35; } }
+  .setup-feedback { min-height: 18px; margin: 0 0 8px; }
+  .setup-error {
+    color: var(--error); font-size: 11px; line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .setup-busy { color: var(--muted); font-size: 11px; }
+  .cached { margin: 0 0 12px; }
+  .cached-title { color: var(--muted); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; margin: 4px 0 2px; }
+  .cache-dir { color: var(--muted); font-size: 10px; line-height: 1.4; margin-top: 12px; overflow-wrap: anywhere; }
+  .cache-actions { margin-top: 2px; }
+  .link { background: none; border: 0; padding: 0; color: var(--vscode-textLink-foreground); cursor: pointer; font-size: 11px; }
+  /* Chat */
+  .chat { padding: 14px 12px 6px; }
+  .msg { margin: 0 0 14px; }
+  .msg .who { color: var(--muted); font-size: 10px; margin-bottom: 3px; }
+  .msg.user { margin-left: 36px; }
+  .msg.user .who { text-align: right; }
+  .msg.user .body { background: var(--input); color: var(--input-fg); border-radius: 5px; padding: 6px 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.assistant .body { border-left: 2px solid var(--line); padding-left: 9px; line-height: 1.5; overflow-wrap: anywhere; }
+  .msg.info .body, .msg.note .body, .msg.error .body { color: var(--muted); font-size: 11px; white-space: pre-wrap; }
+  .msg.error .body { color: var(--error); }
+  .approval {
+    border: 1px solid var(--error); border-radius: 5px; padding: 9px; margin: 0 0 14px;
+    background: rgba(241, 76, 76, .06);
+  }
+  .approval-title { color: var(--error); font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .approval-path { font-family: var(--vscode-editor-font-family); font-size: 10px; overflow-wrap: anywhere; }
+  .approval-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .approval-done { color: var(--muted); font-size: 10px; margin-top: 6px; }
+  .msg .meta { color: var(--muted); font-size: 10px; margin-top: 4px; }
+  .body p { margin: 0 0 .6em; white-space: pre-wrap; }
+  .body p:last-child { margin-bottom: 0; }
+  .body pre {
+    background: var(--code); border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px; overflow-x: auto; margin: .6em 0;
+  }
+  .body code { font-family: var(--vscode-editor-font-family); font-size: .94em; }
+  .body :not(pre) > code { background: var(--code); padding: 1px 3px; border-radius: 2px; }
+  .streaming .body::after {
+    content: ""; display: inline-block; width: 5px; height: 12px;
+    background: var(--fg); opacity: .5; margin-left: 3px;
+    vertical-align: text-bottom; animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  footer {
+    flex: none; border-top: 1px solid var(--line);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 5px;
+  }
+  .composer { display: flex; gap: 6px; align-items: flex-end; }
+  textarea {
+    flex: 1; resize: none; min-height: 34px; max-height: 140px;
+    background: var(--input); color: var(--input-fg);
+    border: 1px solid var(--vscode-input-border, var(--line));
+    border-radius: 5px; padding: 7px 8px; font: inherit; line-height: 1.35;
+    outline: none;
+  }
+  textarea:focus { border-color: var(--vscode-focusBorder); }
+  .footer-row { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+  .busy-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  [hidden] { display: none !important; }
+</style>
+<style nonce="fR5BwAijwoNpO6jMGQYSxwLP">
+  :root {
+    --vscode-sideBar-background: #1f1f1f;
+    --vscode-sideBar-foreground: #cccccc;
+    --vscode-descriptionForeground: #9d9d9d;
+    --vscode-panel-border: #333333;
+    --vscode-input-background: #3c3c3c;
+    --vscode-input-foreground: #cccccc;
+    --vscode-input-border: #3c3c3c;
+    --vscode-button-background: #0e639c;
+    --vscode-button-foreground: #ffffff;
+    --vscode-textCodeBlock-background: #2b2b2b;
+    --vscode-errorForeground: #f14c4c;
+    --vscode-textLink-foreground: #3794ff;
+    --vscode-focusBorder: #007fd4;
+    --vscode-editor-font-family: "SFMono-Regular", Consolas, monospace;
+    --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --vscode-font-size: 13px;
+    background: #1f1f1f;
+  }
+</style><script nonce="fR5BwAijwoNpO6jMGQYSxwLP">
+window.acquireVsCodeApi = function () {
+  return { postMessage: function () {}, getState: function () { return {}; }, setState: function () {} };
+};
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    
+  window.postMessage({ type: 'status', status: {
+    state: 'running', label: 'Running', detail: 'Model ready.',
+    endpoint: 'http://127.0.0.1:11434', modelId: 'QWEN3_600M_INST_Q4',
+    modelAlias: 'localpilot-model', owned: true
+  } }, '*');
+  window.postMessage({ type: 'setupConfig', config: {
+    modelId: 'QWEN3_600M_INST_Q4', modelPath: '', onboarded: true
+  } }, '*');
+  window.postMessage({ type: 'mode', mode: 'chat' }, '*');
+  setTimeout(function () {
+    var mode = document.getElementById('mode');
+    mode.value = 'plan';
+    mode.dispatchEvent(new Event('change'));
+    setTimeout(function () {
+      window.postMessage({ type: 'user', text: 'Read src/add.ts and propose a safe plan to fix the edge case.' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent step 1/6: waiting for the local model…' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent tool: read_file' }, '*');
+      window.postMessage({ type: 'note', message: 'Read src/add.ts (842 characters).' }, '*');
+      window.postMessage({ type: 'assistantStart', id: 4 }, '*');
+      window.postMessage({ type: 'assistantDelta', id: 4, text: 'Plan: 1) Add a guard for non-numeric input in add(). 2) Add a test for NaN. 3) Run the test suite. No files were changed in Plan mode.' }, '*');
+      window.postMessage({ type: 'assistantEnd', id: 4, meta: { elapsedMs: 6400, completionTokens: 32, finishReason: 'stop' } }, '*');
+    }, 30);
+  }, 20);
+
+  }, 80);
+});
+</script></head>
+<body>
+<header>
+  <div class="brand">LocalPilot</div>
+  <div id="status" class="status" title=""><span class="dot"></span><span id="status-label" class="status-label">Starting…</span></div>
+  <div class="grow"></div>
+  <button id="power" class="power" style="visibility:hidden">Start</button>
+  <button id="model" title="Change model">Model</button>
+  <button id="settings" title="Settings">Settings</button>
+</header>
+
+<main id="setup" class="setup">
+  <div class="setup-inner">
+    <h1>Choose a model</h1>
+    <p class="sub">LocalPilot runs the model on this machine. Download one now, or use a GGUF file you already have.</p>
+    <div class="options">
+      <label class="option">
+        <input type="radio" name="model" value="QWEN3_600M_INST_Q4" checked>
+        <span><strong>Qwen3 0.6B</strong><small>382 MB · recommended</small></span>
+      </label>
+      <label class="option">
+        <input type="radio" name="model" value="QWEN3_1_7B_INST_Q4">
+        <span><strong>Qwen3 1.7B</strong><small class="warn">1.01 GB · slower, more capable <span class="flag">SLOW</span></small></span>
+      </label>
+      <label class="option">
+        <input type="radio" name="model" value="local">
+        <span><strong>Use a local GGUF</strong><small id="local-path">No file selected</small></span>
+      </label>
+    </div>
+    <div id="cached-wrap" class="cached" hidden>
+      <div class="cached-title">Already on this PC</div>
+      <div id="cached-list" class="options"></div>
+    </div>
+    <div id="download-progress" class="progress" aria-live="polite">
+      <div class="download-bar"><div id="download-fill"></div></div>
+      <div id="download-label" class="download-label"></div>
+    </div>
+    <div class="setup-feedback">
+      <div id="setup-error" class="setup-error" hidden></div>
+      <div id="setup-busy" class="setup-busy" hidden></div>
+    </div>
+    <div class="setup-actions">
+      <button id="browse" disabled>Browse for .gguf…</button>
+      <button id="setup-start" class="primary">Download and start</button>
+      <button id="back" class="link" hidden>Back to chat</button>
+    </div>
+    <div id="cache-dir" class="cache-dir"></div>
+    <div class="cache-actions">
+      <button id="open-cache" class="link" hidden>Open models folder</button>
+      <button id="recover-models" class="link">Recover old models</button>
+    </div>
+    <p class="cache-dir">LocalPilot never deletes model files in this folder.</p>
+    <p class="setup-note">No cloud. No telemetry. Prompts stay on this machine. Internet is needed only for the model download. CPU inference can take several seconds before the first token.</p>
+  </div>
+</main>
+
+<main id="chat" class="chat" hidden></main>
+
+<footer id="composer" hidden>
+  <div class="composer">
+    <textarea id="input" rows="1" placeholder="Ask about your code…" aria-label="Message"></textarea>
+    <button id="send" class="primary">Send</button>
+    <button id="cancel" hidden>Stop</button>
+  </div>
+  <div class="footer-row">
+    <select id="mode" class="mode" title="Chat: no file tools. Plan: read-only workspace tools. Build: read/write with approval.">
+      <option value="chat">Chat</option>
+      <option value="plan">Plan</option>
+      <option value="build">Build</option>
+    </select>
+    <button id="net" class="net" title="Internet tools: web search and URL fetch. Off by default; sends queries off this machine.">Net</button>
+    <span id="model-label"></span>
+    <span class="grow"></span>
+    <span id="busy-label" class="busy-label"></span>
+  </div>
+</footer>
+
+<script nonce="fR5BwAijwoNpO6jMGQYSxwLP">
+(function () {
+  const vscode = acquireVsCodeApi();
+  const setup = document.getElementById('setup');
+  const chat = document.getElementById('chat');
+  const composer = document.getElementById('composer');
+  const input = document.getElementById('input');
+  const send = document.getElementById('send');
+  const cancel = document.getElementById('cancel');
+  const power = document.getElementById('power');
+  const modeSelect = document.getElementById('mode');
+  const netButton = document.getElementById('net');
+  const status = document.getElementById('status');
+  const statusLabel = document.getElementById('status-label');
+  const busyLabel = document.getElementById('busy-label');
+  const modelLabel = document.getElementById('model-label');
+  const setupError = document.getElementById('setup-error');
+  const setupBusy = document.getElementById('setup-busy');
+  const downloadProgress = document.getElementById('download-progress');
+  const downloadFill = document.getElementById('download-fill');
+  const downloadLabel = document.getElementById('download-label');
+  const setupStart = document.getElementById('setup-start');
+  const browse = document.getElementById('browse');
+  const back = document.getElementById('back');
+  const localPathLabel = document.getElementById('local-path');
+  const cachedWrap = document.getElementById('cached-wrap');
+  const cachedList = document.getElementById('cached-list');
+  const cacheDir = document.getElementById('cache-dir');
+  const openCache = document.getElementById('open-cache');
+  const assistants = new Map();
+  let busy = false;
+  let canCancel = false;
+  let mode = 'setup';
+  let runtimeState = 'stopped';
+  let setupRunning = false;
+  let onboarded = false;
+  let localPath = '';
+  let chatMode = 'chat';
+  let netMode = false;
+  let cachedModels = [];
+  let cacheDirectory = '';
+
+  function post(message) { vscode.postMessage(message); }
+  function allRadios() { return Array.from(document.querySelectorAll('input[name="model"]')); }
+  function selectedValue() { const r = allRadios().find((x) => x.checked); return r ? r.value : 'QWEN3_600M_INST_Q4'; }
+  function isLocal() { return selectedValue() === 'local'; }
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '';
+    if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(2) + ' GB';
+    return (bytes / 1024 ** 2).toFixed(1) + ' MB';
+  }
+  function updateSetup() {
+    const local = isLocal();
+    const cached = selectedValue().startsWith('cached:');
+    browse.disabled = setupRunning || !local;
+    back.hidden = !onboarded;
+    setupStart.disabled = setupRunning || (local && !localPath);
+    setupStart.textContent = setupRunning
+      ? 'Working…'
+      : local || cached
+        ? 'Use this model'
+        : 'Download and start';
+    for (const r of allRadios()) r.disabled = setupRunning;
+    updatePower();
+  }
+  function updatePower() {
+    const active = runtimeState === 'running' || runtimeState === 'external';
+    power.textContent = active ? 'Stop' : 'Start';
+    power.disabled = runtimeState === 'starting' || runtimeState === 'stopping';
+    power.style.visibility = mode === 'chat' ? 'visible' : 'hidden';
+  }
+  function nearBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 100; }
+  function scroll(force) { if (force || nearBottom()) requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; }); }
+
+  function inline(parent, text) {
+    const parts = text.split(/(`[^`\n]+`)/g);
+    for (const part of parts) {
+      if (!part) continue;
+      if (part.length > 2 && part.startsWith('`') && part.endsWith('`')) {
+        const code = document.createElement('code');
+        code.textContent = part.slice(1, -1);
+        parent.appendChild(code);
+      } else {
+        parent.appendChild(document.createTextNode(part));
+      }
+    }
+  }
+  function render(body, text) {
+    body.textContent = '';
+    const sections = text.split(/```/);
+    sections.forEach((section, index) => {
+      if (index % 2 === 1) {
+        let code = section;
+        const nl = section.indexOf('\n');
+        if (nl >= 0) code = section.slice(nl + 1);
+        const pre = document.createElement('pre');
+        const codeEl = document.createElement('code');
+        codeEl.textContent = code.replace(/\n$/, '');
+        pre.appendChild(codeEl);
+        body.appendChild(pre);
+      } else if (section) {
+        for (const paragraph of section.split(/\n{2,}/)) {
+          if (!paragraph.trim()) continue;
+          const p = document.createElement('p');
+          inline(p, paragraph.replace(/^\n+|\n+$/g, ''));
+          body.appendChild(p);
+        }
+      }
+    });
+  }
+  function addMessage(kind, label, text) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + kind;
+    if (label) {
+      const who = document.createElement('div');
+      who.className = 'who';
+      who.textContent = label;
+      wrap.appendChild(who);
+    }
+    const body = document.createElement('div');
+    body.className = 'body';
+    if (kind === 'assistant' || kind === 'user') render(body, text);
+    else body.textContent = text;
+    wrap.appendChild(body);
+    chat.appendChild(wrap);
+    scroll(true);
+    return { wrap, body };
+  }
+  let busyStartedAt = 0;
+  let busyLabelText = '';
+  let busyTimer;
+  function renderBusy() {
+    if (!busy) {
+      busyLabel.textContent = '';
+      return;
+    }
+    const elapsed = Math.max(0, (performance.now() - busyStartedAt) / 1000);
+    busyLabel.textContent = (busyLabelText || 'Working…') + ' · ' + elapsed.toFixed(0) + 's';
+  }
+  function setBusy(active, label) {
+    const wasBusy = busy;
+    busy = active;
+    send.disabled = active;
+    cancel.hidden = !(active && canCancel);
+    if (active) {
+      if (!wasBusy) busyStartedAt = performance.now();
+      busyLabelText = label || 'Working…';
+      if (!busyTimer) busyTimer = setInterval(renderBusy, 250);
+      renderBusy();
+    } else {
+      busyLabelText = '';
+      if (busyTimer) {
+        clearInterval(busyTimer);
+        busyTimer = undefined;
+      }
+      renderBusy();
+    }
+  }
+  function showError(message, hint) {
+    setupError.hidden = false;
+    setupError.textContent = hint ? message + '\n' + hint : message;
+  }
+
+  window.addEventListener('message', (event) => {
+    const m = event.data;
+    if (!m || typeof m.type !== 'string') return;
+    switch (m.type) {
+      case 'status': {
+        const s = m.status;
+        const labels = {
+          running: 'Running',
+          external: 'External',
+          starting: 'Starting',
+          stopping: 'Stopping',
+          stopped: 'Stopped',
+          error: 'Error'
+        };
+        const names = {
+          QWEN3_600M_INST_Q4: 'Qwen3 0.6B',
+          QWEN3_1_7B_INST_Q4: 'Qwen3 1.7B'
+        };
+        status.className = 'status ' + s.state;
+        status.title = s.detail || s.label || '';
+        statusLabel.textContent = labels[s.state] || s.label;
+        modelLabel.textContent = names[s.modelId] || s.modelAlias || '';
+        runtimeState = s.state;
+        const active = s.state === 'running' || s.state === 'external';
+        updateSetup();
+        break;
+      }
+      case 'mode': {
+        mode = m.mode === 'setup' ? 'setup' : 'chat';
+        setup.hidden = mode !== 'setup';
+        chat.hidden = mode !== 'chat';
+        composer.hidden = mode !== 'chat';
+        if (mode === 'chat') { setTimeout(() => input.focus(), 0); }
+        updateSetup();
+        break;
+      }
+      case 'setupConfig': {
+        const c = m.config;
+        onboarded = Boolean(c.onboarded);
+        localPath = c.modelPath || '';
+        if (c.modelPath) {
+          const r = allRadios().find((x) => x.value === 'local');
+          if (r) r.checked = true;
+          localPathLabel.textContent = c.modelPath;
+        } else {
+          const r = allRadios().find((x) => x.value === c.modelId);
+          if (r) r.checked = true;
+          localPathLabel.textContent = 'No file selected';
+        }
+        setupError.hidden = true;
+        updateSetup();
+        break;
+      }
+      case 'setupLocalPath': {
+        localPath = m.path || '';
+        localPathLabel.textContent = localPath || 'No file selected';
+        const r = allRadios().find((x) => x.value === 'local');
+        if (r) r.checked = true;
+        setupError.hidden = true;
+        updateSetup();
+        break;
+      }
+      case 'cachedModels': {
+        cachedModels = Array.isArray(m.models) ? m.models : [];
+        cacheDirectory = m.directory || '';
+        cachedList.textContent = '';
+        cachedWrap.hidden = cachedModels.length === 0;
+        cachedModels.forEach(function (model, index) {
+          const label = document.createElement('label');
+          label.className = 'option';
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = 'model';
+          input.value = 'cached:' + index;
+          const span = document.createElement('span');
+          const strong = document.createElement('strong');
+          strong.textContent = model.label || model.fileName || 'Local model';
+          const small = document.createElement('small');
+          small.textContent = [formatBytes(model.sizeBytes), 'already downloaded'].filter(Boolean).join(' · ');
+          small.title = model.path || '';
+          if (model.sizeBytes > 800 * 1024 * 1024) {
+            small.classList.add('warn');
+            const flag = document.createElement('span');
+            flag.className = 'flag';
+            flag.textContent = 'SLOW';
+            small.appendChild(flag);
+          }
+          span.appendChild(strong);
+          span.appendChild(small);
+          label.appendChild(input);
+          label.appendChild(span);
+          cachedList.appendChild(label);
+        });
+        if (localPath) {
+          const match = cachedModels.findIndex(function (model) { return model.path === localPath; });
+          if (match >= 0) {
+            const r = allRadios().find(function (x) { return x.value === 'cached:' + match; });
+            if (r) r.checked = true;
+          }
+        }
+        cacheDir.textContent = cacheDirectory ? 'Models folder: ' + cacheDirectory : '';
+        openCache.hidden = !cacheDirectory;
+        updateSetup();
+        break;
+      }
+      case 'setupBusy': {
+        setupRunning = Boolean(m.active);
+        setupBusy.hidden = !setupRunning;
+        setupBusy.textContent = m.message || '';
+        updateSetup();
+        break;
+      }
+      case 'downloadProgress': {
+        const active = Boolean(m.active);
+        const downloaded = Number(m.downloaded) || 0;
+        const total = Number(m.total) || 0;
+        const pct = total > 0 ? Math.min(100, (downloaded / total) * 100) : 0;
+        downloadProgress.classList.toggle('active', active);
+        downloadProgress.classList.toggle('indeterminate', active && total <= 0);
+        downloadFill.style.width = active ? (total > 0 ? pct.toFixed(1) + '%' : '100%') : '0%';
+        downloadLabel.textContent = active
+          ? total > 0
+            ? 'Downloading ' + formatBytes(downloaded) + ' / ' + formatBytes(total) + ' · ' + pct.toFixed(0) + '%'
+            : 'Downloading ' + formatBytes(downloaded)
+          : '';
+        break;
+      }
+      case 'setupError': {
+        if (!m.message) {
+          setupError.hidden = true;
+          setupError.textContent = '';
+        } else {
+          showError(m.message, m.hint);
+        }
+        setupRunning = false;
+        setupBusy.hidden = true;
+        updateSetup();
+        break;
+      }
+      case 'busy': {
+        canCancel = Boolean(m.canCancel);
+        setBusy(Boolean(m.active), m.label);
+        break;
+      }
+      case 'user': addMessage('user', 'You', m.text); break;
+      case 'info':
+      case 'note': addMessage(m.type, '', m.message || m.text || ''); break;
+      case 'error': {
+        const e = addMessage('error', 'Error', m.message);
+        if (m.hint) {
+          const hint = document.createElement('div');
+          hint.className = 'meta';
+          hint.textContent = m.hint;
+          e.wrap.appendChild(hint);
+        }
+        scroll(true);
+        break;
+      }
+      case 'approval': {
+        const card = document.createElement('div');
+        card.className = 'msg approval';
+        card.dataset.id = m.id;
+        const title = document.createElement('div');
+        title.className = 'approval-title';
+        title.textContent = m.isNew ? 'Create file — approval required' : 'Edit file — approval required';
+        const p = document.createElement('div');
+        p.className = 'approval-path';
+        p.textContent = m.path || '';
+        const actions = document.createElement('div');
+        actions.className = 'approval-actions';
+        const apply = document.createElement('button');
+        apply.className = 'primary';
+        apply.textContent = 'Apply';
+        const reject = document.createElement('button');
+        reject.textContent = 'Reject';
+        const decide = (value) => {
+          apply.disabled = true;
+          reject.disabled = true;
+          post({ type: 'approvalDecision', id: m.id, apply: value });
+        };
+        apply.addEventListener('click', () => decide(true));
+        reject.addEventListener('click', () => decide(false));
+        actions.appendChild(apply);
+        actions.appendChild(reject);
+        card.appendChild(title);
+        card.appendChild(p);
+        card.appendChild(actions);
+        chat.appendChild(card);
+        scroll(true);
+        break;
+      }
+      case 'approvalDone': {
+        const card = chat.querySelector('.approval[data-id="' + m.id + '"]');
+        if (card) {
+          const done = document.createElement('div');
+          done.className = 'approval-done';
+          done.textContent = m.applied ? 'Applied.' : 'Rejected.';
+          card.appendChild(done);
+        }
+        break;
+      }
+      case 'assistantStart': {
+        const entry = addMessage('assistant streaming', 'LocalPilot', '');
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = 'waiting for first token · 0.0s';
+        entry.wrap.appendChild(meta);
+        const startedAt = performance.now();
+        const timer = setInterval(function () {
+          const a = assistants.get(m.id);
+          if (!a || a.hasContent) return;
+          a.meta.textContent =
+            'waiting for first token · ' + ((performance.now() - startedAt) / 1000).toFixed(1) + 's';
+        }, 250);
+        assistants.set(m.id, { ...entry, meta, text: '', hasContent: false, timer });
+        scroll(true);
+        break;
+      }
+      case 'assistantDelta': {
+        const a = assistants.get(m.id);
+        if (!a) break;
+        if (!a.hasContent) {
+          a.hasContent = true;
+          clearInterval(a.timer);
+          a.meta.textContent = 'generating…';
+        }
+        a.text += m.text || '';
+        render(a.body, a.text);
+        scroll(false);
+        break;
+      }
+      case 'assistantEnd': {
+        const a = assistants.get(m.id);
+        if (!a) break;
+        clearInterval(a.timer);
+        a.wrap.classList.remove('streaming');
+        const meta = m.meta || {};
+        const bits = [];
+        if (meta.elapsedMs) bits.push((meta.elapsedMs / 1000).toFixed(1) + 's');
+        if (meta.completionTokens) bits.push(meta.completionTokens + ' tokens');
+        if (meta.finishReason === 'length') bits.push('truncated');
+        if (meta.note) bits.push(meta.note);
+        a.meta.textContent = bits.join(' · ');
+        assistants.delete(m.id);
+        scroll(false);
+        break;
+      }
+      case 'restoreInput':
+        input.value = m.text || '';
+        input.dispatchEvent(new Event('input'));
+        input.focus();
+        break;
+      case 'clear':
+        chat.textContent = '';
+        for (const a of assistants.values()) clearInterval(a.timer);
+        assistants.clear();
+        break;
+    }
+  });
+
+  function submit() {
+    const text = input.value;
+    if (!text.trim() || busy) return;
+    input.value = '';
+    input.style.height = 'auto';
+    post({ type: 'send', text, mode: chatMode, web: netMode });
+  }
+  function beginSetup() {
+    setupError.hidden = true;
+    const value = selectedValue();
+    if (value.startsWith('cached:')) {
+      const model = cachedModels[Number(value.slice(7))];
+      if (!model || !model.path) { showError('That cached model is no longer available.'); return; }
+      post({ type: 'startSetup', kind: 'local', modelPath: model.path });
+    } else if (value === 'local') {
+      if (!localPath) { showError('Choose a .gguf file first.'); return; }
+      post({ type: 'startSetup', kind: 'local', modelPath: localPath });
+    } else {
+      post({ type: 'startSetup', kind: 'catalog', modelId: value });
+    }
+  }
+
+  setup.addEventListener('change', (event) => {
+    if (event.target && event.target.name === 'model') updateSetup();
+  });
+  browse.addEventListener('click', () => post({ type: 'browseModel' }));
+  setupStart.addEventListener('click', beginSetup);
+  back.addEventListener('click', () => post({ type: 'showChat' }));
+  openCache.addEventListener('click', () => post({ type: 'openModelsFolder' }));
+  document.getElementById('recover-models').addEventListener('click', () => post({ type: 'recoverModels' }));
+  document.getElementById('model').addEventListener('click', () => post({ type: 'showSetup' }));
+  document.getElementById('settings').addEventListener('click', () => post({ type: 'openSettings' }));
+  power.addEventListener('click', () => {
+    if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
+    else post({ type: 'startRuntime' });
+  });
+  function updateModeUi() {
+    netButton.disabled = chatMode === 'chat';
+    if (chatMode === 'chat') netMode = false;
+    netButton.classList.toggle('active', netMode);
+  }
+  modeSelect.addEventListener('change', () => {
+    chatMode = modeSelect.value;
+    if (chatMode === 'chat') netMode = false;
+    updateModeUi();
+    const messages = {
+      chat: 'Chat mode: no file tools. Use Plan or Build for workspace context.',
+      plan: 'Plan mode: read-only workspace tools. LocalPilot can read/search your code and propose a plan, but cannot edit files.',
+      build: 'Build mode: workspace read/write tools. Every file change requires the in-chat Apply approval. Internet is off unless you enable Net.'
+    };
+    addMessage('note', '', messages[chatMode] || messages.chat);
+    input.focus();
+  });
+  netButton.addEventListener('click', () => {
+    netMode = !netMode;
+    updateModeUi();
+    addMessage('note', '', netMode
+      ? 'Internet ON. Plan/Build requests may send search queries/URLs off this machine. Web content is untrusted. Turn Net off for the offline demo.'
+      : 'Internet OFF. Workspace tools are local-only.');
+    input.focus();
+  });
+  send.addEventListener('click', submit);
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+  });
+  cancel.addEventListener('click', () => post({ type: 'cancel' }));
+  updateSetup();
+  updateModeUi();
+  post({ type: 'ready' });
+})();
+</script>
+</body>
+</html>

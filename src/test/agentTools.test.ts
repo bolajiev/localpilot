@@ -139,3 +139,21 @@ test("detectWriteIntent distinguishes create from edit requests", async () => {
   });
   assert.equal(detectWriteIntent("Explain this function").wantsWrite, false);
 });
+
+test("Plan/read-only mode removes write tools and blocks writes", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "localpilot-agent-plan-"));
+  try {
+    const tools = new AgentTools(root, async () => true, { readOnly: true });
+    const names = tools.definitions().map((tool) => tool.function.name);
+    assert.equal(names.includes("write_file"), false);
+    assert.equal(names.includes("replace_in_file"), false);
+    const result = await tools.execute(
+      "write_file",
+      JSON.stringify({ path: "blocked.txt", content: "no" })
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.content, /Plan mode is read-only/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

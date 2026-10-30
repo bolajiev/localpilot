@@ -72,6 +72,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Welcome/model setup | PASS (Linux) | Setup path started a catalog model; real chat returned `"LocalPilot integration OK."`; webview UI is static-checked |
 | Cached-model discovery | PASS (Linux) | `~/.qvac/models` scan and `Already on this PC` list; unit-covered |
 | Chat layout / latency feedback | PASS (Linux) | User-right/assistant-left layout; first-token timer and cancel; UI static-checked |
+| Chat / Plan / Build modes | PASS (Linux) | Explicit selector; Plan tools are read-only and unit-tested; active editor context; Build approval card |
 | Download progress | PASS (Linux) | Fresh Qwen3 download reported 382,156,480 / 382,156,480 bytes; UI bar static-checked |
 | Large-model warning | PASS | Red SLOW flag on 1.7B and cached models over 800 MB |
 | Agent file tools | PASS (module) | list/read/search/write/replace unit-tested; path traversal and denied writes tested |
@@ -86,7 +87,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Repository link | PASS | https://github.com/bolajiev/localpilot |
 | Windows all-in-one download | PASS | `localpilot-0.12.0-win32-x64.vsix` (Node + trimmed QVAC; model chosen at setup) |
 | GitHub Actions CI | PASS | Build/test/package workflow succeeded; VSIX artifact uploaded |
-| Clean install/typecheck/unit tests | PASS | 53 unit tests, TypeScript, generic/win32 VSIX |
+| Clean install/typecheck/unit tests | PASS | 54 unit tests, TypeScript, generic/win32 VSIX |
 | Extension Host integration | PASS (Linux) | Start, check, chat, explain command, stop, error paths |
 
 Do not upgrade "PASS (Linux)" to "tested on Windows" without running the Windows sequence.

@@ -131,7 +131,7 @@ const statusAgent = `
   } }, '*');
   window.postMessage({ type: 'mode', mode: 'chat' }, '*');
   setTimeout(function () {
-    document.getElementById('agent').click();
+    var mode = document.getElementById('mode'); mode.value = 'build'; mode.dispatchEvent(new Event('change'));
     setTimeout(function () {
       window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function and a small comment.' }, '*');
       window.postMessage({ type: 'busy', active: true, label: 'Agent step 1 of 4 · waiting for local model', canCancel: true }, '*');
@@ -159,11 +159,37 @@ const statusThinking = `
   } }, '*');
   window.postMessage({ type: 'mode', mode: 'chat' }, '*');
   setTimeout(function () {
-    document.getElementById('agent').click();
+    var mode = document.getElementById('mode'); mode.value = 'build'; mode.dispatchEvent(new Event('change'));
     setTimeout(function () {
       window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function.' }, '*');
       window.postMessage({ type: 'busy', active: true, label: 'Agent step 1 of 4 · waiting for local model', canCancel: true }, '*');
       window.postMessage({ type: 'note', message: 'Agent step 1/4: waiting for the local model…' }, '*');
+    }, 30);
+  }, 20);
+`;
+
+const statusPlan = `
+  window.postMessage({ type: 'status', status: {
+    state: 'running', label: 'Running', detail: 'Model ready.',
+    endpoint: 'http://127.0.0.1:11434', modelId: 'QWEN3_600M_INST_Q4',
+    modelAlias: 'localpilot-model', owned: true
+  } }, '*');
+  window.postMessage({ type: 'setupConfig', config: {
+    modelId: 'QWEN3_600M_INST_Q4', modelPath: '', onboarded: true
+  } }, '*');
+  window.postMessage({ type: 'mode', mode: 'chat' }, '*');
+  setTimeout(function () {
+    var mode = document.getElementById('mode');
+    mode.value = 'plan';
+    mode.dispatchEvent(new Event('change'));
+    setTimeout(function () {
+      window.postMessage({ type: 'user', text: 'Read src/add.ts and propose a safe plan to fix the edge case.' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent step 1/6: waiting for the local model…' }, '*');
+      window.postMessage({ type: 'note', message: 'Agent tool: read_file' }, '*');
+      window.postMessage({ type: 'note', message: 'Read src/add.ts (842 characters).' }, '*');
+      window.postMessage({ type: 'assistantStart', id: 4 }, '*');
+      window.postMessage({ type: 'assistantDelta', id: 4, text: 'Plan: 1) Add a guard for non-numeric input in add(). 2) Add a test for NaN. 3) Run the test suite. No files were changed in Plan mode.' }, '*');
+      window.postMessage({ type: 'assistantEnd', id: 4, meta: { elapsedMs: 6400, completionTokens: 32, finishReason: 'stop' } }, '*');
     }, 30);
   }, 20);
 `;
@@ -179,7 +205,7 @@ const statusWeb = `
   } }, '*');
   window.postMessage({ type: 'mode', mode: 'chat' }, '*');
   setTimeout(function () {
-    document.getElementById('agent').click();
+    var mode = document.getElementById('mode'); mode.value = 'build'; mode.dispatchEvent(new Event('change'));
     document.getElementById('net').click();
     setTimeout(function () {
       window.postMessage({ type: 'user', text: 'Search the web for the QVAC docs and summarize the local server.' }, '*');
@@ -210,7 +236,7 @@ const statusApproval = `
   } }, '*');
   window.postMessage({ type: 'mode', mode: 'chat' }, '*');
   setTimeout(function () {
-    document.getElementById('agent').click();
+    var mode = document.getElementById('mode'); mode.value = 'build'; mode.dispatchEvent(new Event('change'));
     setTimeout(function () {
       window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function.' }, '*');
       window.postMessage({ type: 'busy', active: true, label: 'Agent step 2 of 6 · waiting for approval', canCancel: true }, '*');
@@ -222,4 +248,5 @@ const statusApproval = `
 
 fs.writeFileSync(path.join(__dirname, "../docs/ui/thinking.html"), makeHtml(statusThinking));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/approval.html"), makeHtml(statusApproval));
-console.log("Wrote docs/ui/setup.html, chat.html, download.html, agent.html, web.html, thinking.html, and approval.html");
+fs.writeFileSync(path.join(__dirname, "../docs/ui/plan.html"), makeHtml(statusPlan));
+console.log("Wrote docs/ui/setup.html, chat.html, download.html, agent.html, web.html, thinking.html, approval.html, and plan.html");
