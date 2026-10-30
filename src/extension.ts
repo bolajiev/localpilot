@@ -10,6 +10,7 @@ import {
   SetupConfig
 } from "./chatView";
 import { AgentMessage } from "./agentTypes";
+import { detectWriteIntent } from "./agentPolicy";
 import { AgentTools } from "./agentTools";
 import { LocalPilotError, toFriendlyError } from "./errors";
 import { ChatResult, QvacClient } from "./qvacClient";
@@ -399,10 +400,26 @@ async function runAgentRequest(view: ChatPanel, text: string, webEnabled: boolea
       { role: "user", content: text }
     ];
     const client = runtime().createClient(settings);
+    const writeIntent = detectWriteIntent(text);
+    let wroteFile = false;
     let finalContent = "";
 
+    if (writeIntent.wantsWrite) {
+      messages[0] = {
+        ...messages[0],
+        content: `${messages[0].content}\nThe user is asking for a file change. You must use ${writeIntent.writeTool} to apply it; do not only print code in chat.`
+      };
+    }
+
     for (let step = 0; step < 4; step += 1) {
-      view.setBusy(true, `Agent step ${step + 1} of 4…`, true);
+      view.setBusy(true, `Agent step ${step + 1} of 4 · waiting for local model`, true);
+      view.addNote(`Agent step ${step + 1}/4: waiting for the local model…`);
+      const toolChoice =
+        step === 0
+          ? "required"
+          : writeIntent.wantsWrite && !wroteFile && step === 1
+            ? ({ type: "function", function: { name: writeIntent.writeTool } } as const)
+            : "auto";
       const result = await client.chatWithTools(
         messages,
         tools.definitions(),
@@ -410,7 +427,7 @@ async function runAgentRequest(view: ChatPanel, text: string, webEnabled: boolea
           maxTokens: settings.maxOutputTokens,
           temperature: 0.1,
           enableReasoning: false,
-          toolChoice: step === 0 ? "required" : "auto"
+          toolChoice
         },
         controller.signal,
         settings.requestTimeoutMs
@@ -430,7 +447,23 @@ async function runAgentRequest(view: ChatPanel, text: string, webEnabled: boolea
       });
       for (const call of result.toolCalls) {
         view.addNote(`Agent tool: ${call.function.name}`);
+        if (call.function.name === "write_file" || call.function.name === "replace_in_file") {
+          try {
+            const args = JSON.parse(call.function.arguments) as { path?: unknown };
+            if (typeof args.path === "string") {
+              view.addNote(`Waiting for approval: ${args.path}`);
+            }
+          } catch {
+            // The tool will report invalid arguments.
+          }
+        }
         const outcome = await tools.execute(call.function.name, call.function.arguments);
+        if (
+          outcome.ok &&
+          (call.function.name === "write_file" || call.function.name === "replace_in_file")
+        ) {
+          wroteFile = true;
+        }
         view.addNote(outcome.summary);
         messages.push({
           role: "tool",

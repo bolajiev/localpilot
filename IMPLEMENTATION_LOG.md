@@ -183,6 +183,15 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.14.0 agent write enforcement and progress visibility (2026-10-26)
+
+- Added write-intent detection (`create/add` → `write_file`; `edit/fix/update` → `replace_in_file`).
+- The agent's first step forces a tool; if it only read files and the request is a file change, step 2 forces the write tool. It cannot stop at chat-only code.
+- Added visible agent step notes and a live busy-footer timer; write calls show `Waiting for approval: <path>`.
+- Real QVAC loop test: forced `write_file` created `hello.txt` with `hi`; the follow-up automatic step returned a final summary. Timings on this loaded CPU host: 272 s + 205 s.
+- Agent file writes still require the diff/Apply approval; Windows execution remains NOT TESTED.
+- 53 unit tests pass.
+
 ## 0.13.0 right-side placement and model-preservation audit (2026-10-26)
 
 - Moved the view container from `viewsContainers.activitybar` to `viewsContainers.secondarySidebar`, placing LocalPilot on the right and leaving File Explorer on the left. Minimum VS Code is now 1.108.
@@ -356,7 +365,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - GitHub Actions workflow: PASS (clean install, typecheck, 45 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
 - The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and setup. `0.4.0` bundled Node. `0.5.0` bundled full QVAC and the model. `0.6.0` moved model choice to a welcome page. `0.7.0` trims QVAC to the chat/LLM subset to cut download size.
-- Release assets: `localpilot-0.13.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.13.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Release assets: `localpilot-0.14.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.14.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -392,7 +401,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.13.0; Windows Node+trimmed QVAC + generic)
+- [x] GitHub Release assets published for download (0.14.0; Windows Node+trimmed QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

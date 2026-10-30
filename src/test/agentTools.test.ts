@@ -126,3 +126,16 @@ test("DuckDuckGo result parsing extracts titles, decoded URLs, and snippets", as
   assert.equal(results[0].url, "https://example.com/docs");
   assert.equal(results[0].snippet, "A & B snippet");
 });
+
+test("detectWriteIntent distinguishes create from edit requests", async () => {
+  const { detectWriteIntent } = await import("../agentPolicy");
+  assert.deepEqual(detectWriteIntent("Create a file src/add.ts with an add function"), {
+    wantsWrite: true,
+    writeTool: "write_file"
+  });
+  assert.deepEqual(detectWriteIntent("Fix the bug in src/add.ts"), {
+    wantsWrite: true,
+    writeTool: "replace_in_file"
+  });
+  assert.equal(detectWriteIntent("Explain this function").wantsWrite, false);
+});

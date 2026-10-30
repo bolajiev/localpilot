@@ -53,6 +53,10 @@ In the chat footer, click **Agent** to turn on the experimental local coding age
 
 The agent can create or edit files only after it opens a diff and you click **Apply**. It cannot access paths outside the first workspace folder or run shell commands.
 
+If you ask for a file change, LocalPilot forces the write/replace tool if the first inspection step only read files, so the model cannot simply answer with code in chat. The footer shows the current agent step and elapsed time; write steps add **Waiting for approval: path**. The diff notification is what applies the change.
+
+![LocalPilot Agent step timer](docs/ui/thinking.png)
+
 ![LocalPilot Agent mode](docs/ui/agent.png)
 
 ### Optional internet tools
@@ -340,7 +344,7 @@ npm test
 npm run check
 ```
 
-`npm test` runs 51 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
+`npm test` runs 53 unit tests covering SSE parsing, catalog/local config generation, prompt/selection limits, error mapping, sanitizer behavior, runtime locator helpers, and the QVAC HTTP client (including timeout and 404/502 paths).
 
 Linux extension-host integration test (downloads a VS Code test build on first run):
 

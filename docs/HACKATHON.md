@@ -85,7 +85,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Repository link | PASS | https://github.com/bolajiev/localpilot |
 | Windows all-in-one download | PASS | `localpilot-0.12.0-win32-x64.vsix` (Node + trimmed QVAC; model chosen at setup) |
 | GitHub Actions CI | PASS | Build/test/package workflow succeeded; VSIX artifact uploaded |
-| Clean install/typecheck/unit tests | PASS | 51 unit tests, TypeScript, generic/win32 VSIX |
+| Clean install/typecheck/unit tests | PASS | 53 unit tests, TypeScript, generic/win32 VSIX |
 | Extension Host integration | PASS (Linux) | Start, check, chat, explain command, stop, error paths |
 
 Do not upgrade "PASS (Linux)" to "tested on Windows" without running the Windows sequence.

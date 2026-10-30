@@ -603,11 +603,35 @@ function chatHtml(): string {
     scroll(true);
     return { wrap, body };
   }
+  let busyStartedAt = 0;
+  let busyLabelText = '';
+  let busyTimer;
+  function renderBusy() {
+    if (!busy) {
+      busyLabel.textContent = '';
+      return;
+    }
+    const elapsed = Math.max(0, (performance.now() - busyStartedAt) / 1000);
+    busyLabel.textContent = (busyLabelText || 'Working…') + ' · ' + elapsed.toFixed(0) + 's';
+  }
   function setBusy(active, label) {
+    const wasBusy = busy;
     busy = active;
     send.disabled = active;
     cancel.hidden = !(active && canCancel);
-    busyLabel.textContent = active ? label || 'Working…' : '';
+    if (active) {
+      if (!wasBusy) busyStartedAt = performance.now();
+      busyLabelText = label || 'Working…';
+      if (!busyTimer) busyTimer = setInterval(renderBusy, 250);
+      renderBusy();
+    } else {
+      busyLabelText = '';
+      if (busyTimer) {
+        clearInterval(busyTimer);
+        busyTimer = undefined;
+      }
+      renderBusy();
+    }
   }
   function showError(message, hint) {
     setupError.hidden = false;

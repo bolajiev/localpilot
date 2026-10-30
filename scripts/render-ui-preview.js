@@ -134,6 +134,8 @@ const statusAgent = `
     document.getElementById('agent').click();
     setTimeout(function () {
       window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function and a small comment.' }, '*');
+      window.postMessage({ type: 'busy', active: true, label: 'Agent step 1 of 4 · waiting for local model', canCancel: true }, '*');
+      window.postMessage({ type: 'note', message: 'Agent step 1/4: waiting for the local model…' }, '*');
       window.postMessage({ type: 'note', message: 'Agent tool: read_file' }, '*');
       window.postMessage({ type: 'note', message: 'Read src/index.ts (1,204 characters).' }, '*');
       window.postMessage({ type: 'note', message: 'Agent tool: write_file' }, '*');
@@ -141,6 +143,27 @@ const statusAgent = `
       window.postMessage({ type: 'assistantStart', id: 2 }, '*');
       window.postMessage({ type: 'assistantDelta', id: 2, text: 'I prepared src/add.ts. Review the diff and click Apply to write it to the workspace.' }, '*');
       window.postMessage({ type: 'assistantEnd', id: 2, meta: { elapsedMs: 8200, completionTokens: 24, finishReason: 'stop' } }, '*');
+      window.postMessage({ type: 'busy', active: false, label: '', canCancel: false }, '*');
+    }, 30);
+  }, 20);
+`;
+
+const statusThinking = `
+  window.postMessage({ type: 'status', status: {
+    state: 'running', label: 'Running', detail: 'Model ready.',
+    endpoint: 'http://127.0.0.1:11434', modelId: 'QWEN3_600M_INST_Q4',
+    modelAlias: 'localpilot-model', owned: true
+  } }, '*');
+  window.postMessage({ type: 'setupConfig', config: {
+    modelId: 'QWEN3_600M_INST_Q4', modelPath: '', onboarded: true
+  } }, '*');
+  window.postMessage({ type: 'mode', mode: 'chat' }, '*');
+  setTimeout(function () {
+    document.getElementById('agent').click();
+    setTimeout(function () {
+      window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function.' }, '*');
+      window.postMessage({ type: 'busy', active: true, label: 'Agent step 1 of 4 · waiting for local model', canCancel: true }, '*');
+      window.postMessage({ type: 'note', message: 'Agent step 1/4: waiting for the local model…' }, '*');
     }, 30);
   }, 20);
 `;
@@ -176,4 +199,5 @@ fs.writeFileSync(path.join(__dirname, "../docs/ui/chat.html"), makeHtml(statusCh
 fs.writeFileSync(path.join(__dirname, "../docs/ui/download.html"), makeHtml(statusDownload));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/agent.html"), makeHtml(statusAgent));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/web.html"), makeHtml(statusWeb));
-console.log("Wrote docs/ui/setup.html, chat.html, download.html, agent.html, and web.html");
+fs.writeFileSync(path.join(__dirname, "../docs/ui/thinking.html"), makeHtml(statusThinking));
+console.log("Wrote docs/ui/setup.html, chat.html, download.html, agent.html, web.html, and thinking.html");

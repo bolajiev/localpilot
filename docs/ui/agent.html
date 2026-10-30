@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-0LvVZejKm4FN5Myikcza6LoB'; script-src 'nonce-0LvVZejKm4FN5Myikcza6LoB';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-TlVGfAfiEXldA-bh-qv9xZs-'; script-src 'nonce-TlVGfAfiEXldA-bh-qv9xZs-';">
 <title>LocalPilot</title>
-<style nonce="0LvVZejKm4FN5Myikcza6LoB">
+<style nonce="TlVGfAfiEXldA-bh-qv9xZs-">
   :root {
     --bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
     --fg: var(--vscode-sideBar-foreground, var(--vscode-editor-foreground));
@@ -135,7 +135,7 @@
   .busy-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   [hidden] { display: none !important; }
 </style>
-<style nonce="0LvVZejKm4FN5Myikcza6LoB">
+<style nonce="TlVGfAfiEXldA-bh-qv9xZs-">
   :root {
     --vscode-sideBar-background: #1f1f1f;
     --vscode-sideBar-foreground: #cccccc;
@@ -155,7 +155,7 @@
     --vscode-font-size: 13px;
     background: #1f1f1f;
   }
-</style><script nonce="0LvVZejKm4FN5Myikcza6LoB">
+</style><script nonce="TlVGfAfiEXldA-bh-qv9xZs-">
 window.acquireVsCodeApi = function () {
   return { postMessage: function () {}, getState: function () { return {}; }, setState: function () {} };
 };
@@ -175,6 +175,8 @@ window.addEventListener('load', function () {
     document.getElementById('agent').click();
     setTimeout(function () {
       window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function and a small comment.' }, '*');
+      window.postMessage({ type: 'busy', active: true, label: 'Agent step 1 of 4 · waiting for local model', canCancel: true }, '*');
+      window.postMessage({ type: 'note', message: 'Agent step 1/4: waiting for the local model…' }, '*');
       window.postMessage({ type: 'note', message: 'Agent tool: read_file' }, '*');
       window.postMessage({ type: 'note', message: 'Read src/index.ts (1,204 characters).' }, '*');
       window.postMessage({ type: 'note', message: 'Agent tool: write_file' }, '*');
@@ -182,6 +184,7 @@ window.addEventListener('load', function () {
       window.postMessage({ type: 'assistantStart', id: 2 }, '*');
       window.postMessage({ type: 'assistantDelta', id: 2, text: 'I prepared src/add.ts. Review the diff and click Apply to write it to the workspace.' }, '*');
       window.postMessage({ type: 'assistantEnd', id: 2, meta: { elapsedMs: 8200, completionTokens: 24, finishReason: 'stop' } }, '*');
+      window.postMessage({ type: 'busy', active: false, label: '', canCancel: false }, '*');
     }, 30);
   }, 20);
 
@@ -234,7 +237,11 @@ window.addEventListener('load', function () {
       <button id="back" class="link" hidden>Back to chat</button>
     </div>
     <div id="cache-dir" class="cache-dir"></div>
-    <div class="cache-actions"><button id="open-cache" class="link" hidden>Open models folder</button></div>
+    <div class="cache-actions">
+      <button id="open-cache" class="link" hidden>Open models folder</button>
+      <button id="recover-models" class="link">Recover old models</button>
+    </div>
+    <p class="cache-dir">LocalPilot never deletes model files in this folder.</p>
     <p class="setup-note">No cloud. No telemetry. Prompts stay on this machine. Internet is needed only for the model download. CPU inference can take several seconds before the first token.</p>
   </div>
 </main>
@@ -256,7 +263,7 @@ window.addEventListener('load', function () {
   </div>
 </footer>
 
-<script nonce="0LvVZejKm4FN5Myikcza6LoB">
+<script nonce="TlVGfAfiEXldA-bh-qv9xZs-">
 (function () {
   const vscode = acquireVsCodeApi();
   const setup = document.getElementById('setup');
@@ -384,11 +391,35 @@ window.addEventListener('load', function () {
     scroll(true);
     return { wrap, body };
   }
+  let busyStartedAt = 0;
+  let busyLabelText = '';
+  let busyTimer;
+  function renderBusy() {
+    if (!busy) {
+      busyLabel.textContent = '';
+      return;
+    }
+    const elapsed = Math.max(0, (performance.now() - busyStartedAt) / 1000);
+    busyLabel.textContent = (busyLabelText || 'Working…') + ' · ' + elapsed.toFixed(0) + 's';
+  }
   function setBusy(active, label) {
+    const wasBusy = busy;
     busy = active;
     send.disabled = active;
     cancel.hidden = !(active && canCancel);
-    busyLabel.textContent = active ? label || 'Working…' : '';
+    if (active) {
+      if (!wasBusy) busyStartedAt = performance.now();
+      busyLabelText = label || 'Working…';
+      if (!busyTimer) busyTimer = setInterval(renderBusy, 250);
+      renderBusy();
+    } else {
+      busyLabelText = '';
+      if (busyTimer) {
+        clearInterval(busyTimer);
+        busyTimer = undefined;
+      }
+      renderBusy();
+    }
   }
   function showError(message, hint) {
     setupError.hidden = false;
@@ -641,6 +672,7 @@ window.addEventListener('load', function () {
   setupStart.addEventListener('click', beginSetup);
   back.addEventListener('click', () => post({ type: 'showChat' }));
   openCache.addEventListener('click', () => post({ type: 'openModelsFolder' }));
+  document.getElementById('recover-models').addEventListener('click', () => post({ type: 'recoverModels' }));
   document.getElementById('model').addEventListener('click', () => post({ type: 'showSetup' }));
   document.getElementById('settings').addEventListener('click', () => post({ type: 'openSettings' }));
   power.addEventListener('click', () => {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.0 - 2026-10-26
+
+- Agent mode now detects file-change intent and forces write_file/replace_in_file if the first step only inspected files, preventing code-only chat replies.
+- Added live agent step notes and a footer elapsed timer; write steps show "Waiting for approval: <path>".
+- Added an agent policy test for create vs edit intent (53 tests total).
+- No change to Net default-off behavior; file tools still require diff Apply.
+
 ## 0.13.0 - 2026-10-26
 
 - Moved the LocalPilot view container to the **Secondary Side Bar on the right** (VS Code 1.108+), keeping File Explorer on the left.

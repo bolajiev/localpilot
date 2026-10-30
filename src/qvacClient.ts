@@ -22,8 +22,14 @@ export interface ChatParams {
   enableReasoning: boolean;
 }
 
+export type ToolChoice =
+  | "auto"
+  | "none"
+  | "required"
+  | { type: "function"; function: { name: string } };
+
 export interface ToolChatParams extends ChatParams {
-  toolChoice?: "auto" | "none" | "required";
+  toolChoice?: ToolChoice;
 }
 
 export interface ChatDeltaHandler {
@@ -138,6 +144,17 @@ function friendlyHttpError(
       "The local model is not loaded or could not be loaded.",
       {
         hint: "Wait for Start / Load Local Model to finish, then retry. Check the diagnostics log for model-fit or memory errors.",
+        detail
+      }
+    );
+  }
+
+  if (code === "tools_not_enabled") {
+    return new LocalPilotError(
+      "model-load",
+      "The running QVAC model was not loaded with tool support.",
+      {
+        hint: "Stop and restart the LocalPilot runtime so the generated config includes tools, then retry Agent mode.",
         detail
       }
     );
