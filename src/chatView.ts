@@ -15,6 +15,7 @@ export type ChatAction =
   | { type: "browseModel" }
   | { type: "openModelsFolder" }
   | { type: "recoverModels" }
+  | { type: "approvalDecision"; id: string; apply: boolean }
   | { type: "startSetup"; kind: "catalog"; modelId: string }
   | { type: "startSetup"; kind: "local"; modelPath: string }
   | { type: "selectModel" }
@@ -136,6 +137,14 @@ export class ChatPanel implements vscode.Disposable {
     this.post({ type: "downloadProgress", downloaded, total, active });
   }
 
+  public requestApproval(id: string, filePath: string, isNew: boolean): void {
+    this.post({ type: "approval", id, path: filePath, isNew });
+  }
+
+  public resolveApproval(id: string, applied: boolean): void {
+    this.post({ type: "approvalDone", id, applied });
+  }
+
   public setBusy(active: boolean, label: string, canCancel: boolean): void {
     this.post({ type: "busy", active, label, canCancel });
   }
@@ -194,6 +203,8 @@ export class ChatPanel implements vscode.Disposable {
       agent?: unknown;
       web?: unknown;
       kind?: unknown;
+      id?: unknown;
+      apply?: unknown;
       modelId?: unknown;
       modelPath?: unknown;
     };
@@ -244,6 +255,10 @@ export class ChatPanel implements vscode.Disposable {
       case "browseModel":
       case "openModelsFolder":
       case "recoverModels":
+      case "approvalDecision":
+        return typeof record.id === "string" && typeof record.apply === "boolean"
+          ? { type: "approvalDecision", id: record.id, apply: record.apply }
+          : undefined;
       case "selectModel":
       case "openSettings":
         return { type: record.type };
@@ -370,6 +385,14 @@ function chatHtml(): string {
   .msg.assistant .body { border-left: 2px solid var(--line); padding-left: 9px; line-height: 1.5; overflow-wrap: anywhere; }
   .msg.info .body, .msg.note .body, .msg.error .body { color: var(--muted); font-size: 11px; white-space: pre-wrap; }
   .msg.error .body { color: var(--error); }
+  .approval {
+    border: 1px solid var(--error); border-radius: 5px; padding: 9px; margin: 0 0 14px;
+    background: rgba(241, 76, 76, .06);
+  }
+  .approval-title { color: var(--error); font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .approval-path { font-family: var(--vscode-editor-font-family); font-size: 10px; overflow-wrap: anywhere; }
+  .approval-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .approval-done { color: var(--muted); font-size: 10px; margin-top: 6px; }
   .msg .meta { color: var(--muted); font-size: 10px; margin-top: 4px; }
   .body p { margin: 0 0 .6em; white-space: pre-wrap; }
   .body p:last-child { margin-bottom: 0; }
@@ -794,6 +817,49 @@ function chatHtml(): string {
           e.wrap.appendChild(hint);
         }
         scroll(true);
+        break;
+      }
+      case 'approval': {
+        const card = document.createElement('div');
+        card.className = 'msg approval';
+        card.dataset.id = m.id;
+        const title = document.createElement('div');
+        title.className = 'approval-title';
+        title.textContent = m.isNew ? 'Create file — approval required' : 'Edit file — approval required';
+        const p = document.createElement('div');
+        p.className = 'approval-path';
+        p.textContent = m.path || '';
+        const actions = document.createElement('div');
+        actions.className = 'approval-actions';
+        const apply = document.createElement('button');
+        apply.className = 'primary';
+        apply.textContent = 'Apply';
+        const reject = document.createElement('button');
+        reject.textContent = 'Reject';
+        const decide = (value) => {
+          apply.disabled = true;
+          reject.disabled = true;
+          post({ type: 'approvalDecision', id: m.id, apply: value });
+        };
+        apply.addEventListener('click', () => decide(true));
+        reject.addEventListener('click', () => decide(false));
+        actions.appendChild(apply);
+        actions.appendChild(reject);
+        card.appendChild(title);
+        card.appendChild(p);
+        card.appendChild(actions);
+        chat.appendChild(card);
+        scroll(true);
+        break;
+      }
+      case 'approvalDone': {
+        const card = chat.querySelector('.approval[data-id="' + m.id + '"]');
+        if (card) {
+          const done = document.createElement('div');
+          done.className = 'approval-done';
+          done.textContent = m.applied ? 'Applied.' : 'Rejected.';
+          card.appendChild(done);
+        }
         break;
       }
       case 'assistantStart': {

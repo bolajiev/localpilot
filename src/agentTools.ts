@@ -191,6 +191,20 @@ export class AgentTools {
       {
         type: "function",
         function: {
+          name: "search_text",
+          description: "Search text files in the workspace for a literal string. Returns up to 20 matching lines.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "Literal text to search for." }
+            },
+            required: ["query"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "write_file",
           description: "Create or replace a text file in the workspace. The user must approve a diff before the write.",
           parameters: {
@@ -269,6 +283,8 @@ export class AgentTools {
           return await this.listFiles(typeof args.path === "string" ? args.path : ".");
         case "read_file":
           return await this.readFile(requireString(args.path, "path"));
+        case "search_text":
+          return await this.searchText(requireString(args.query, "query"));
         case "write_file":
           return await this.writeFile(
             requireString(args.path, "path"),
@@ -464,6 +480,66 @@ export class AgentTools {
       ok: true,
       content: truncated + suffix,
       summary: `Read ${displayPath(relative)} (${content.length} characters).`
+    };
+  }
+
+  private async searchText(rawQuery: string): Promise<ToolOutcome> {
+    const query = rawQuery.trim();
+    if (!query) {
+      throw new Error("Search query must not be empty.");
+    }
+    const needle = query.toLowerCase();
+    const matches: string[] = [];
+    let scanned = 0;
+    const walk = async (dir: string): Promise<void> => {
+      if (matches.length >= 20 || scanned >= 300) {
+        return;
+      }
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (matches.length >= 20 || scanned >= 300) {
+          return;
+        }
+        if (entry.isSymbolicLink()) {
+          continue;
+        }
+        if (entry.isDirectory()) {
+          if (!SKIP_DIRS.has(entry.name)) {
+            await walk(path.join(dir, entry.name));
+          }
+          continue;
+        }
+        if (!entry.isFile()) {
+          continue;
+        }
+        const absolute = path.join(dir, entry.name);
+        let content: string;
+        try {
+          const stat = await fs.stat(absolute);
+          if (stat.size > 500_000) {
+            continue;
+          }
+          content = await fs.readFile(absolute, "utf8");
+        } catch {
+          continue;
+        }
+        scanned += 1;
+        const lines = content.split("\n");
+        for (let index = 0; index < lines.length; index += 1) {
+          if (lines[index].toLowerCase().includes(needle)) {
+            matches.push(`${displayPath(path.relative(this.root, absolute))}:${index + 1}: ${lines[index].trim().slice(0, 300)}`);
+            if (matches.length >= 20) {
+              return;
+            }
+          }
+        }
+      }
+    };
+    await walk(this.root);
+    return {
+      ok: true,
+      content: matches.join("\n") || "(no matches)",
+      summary: `Searched for "${query}" (${matches.length} matches).`
     };
   }
 

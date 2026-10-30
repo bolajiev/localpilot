@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.0 - 2026-10-26
+
+- Agent writes now show an in-chat **Apply/Reject** approval card; the diff opens automatically for review.
+- Added `search_text` to workspace tools.
+- Increased the agent step budget from 4 to 6.
+- Added `scripts/agent-smoke.js` to verify the real QVAC tool loop before a demo.
+- Added approval-card preview and demo steps.
+
 ## 0.14.0 - 2026-10-26
 
 - Agent mode now detects file-change intent and forces write_file/replace_in_file if the first step only inspected files, preventing code-only chat replies.

@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-TlVGfAfiEXldA-bh-qv9xZs-'; script-src 'nonce-TlVGfAfiEXldA-bh-qv9xZs-';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-25f5EpSazbG4OmHXzMqFJ1DQ'; script-src 'nonce-25f5EpSazbG4OmHXzMqFJ1DQ';">
 <title>LocalPilot</title>
-<style nonce="TlVGfAfiEXldA-bh-qv9xZs-">
+<style nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
   :root {
     --bg: var(--vscode-sideBar-background, var(--vscode-editor-background));
     --fg: var(--vscode-sideBar-foreground, var(--vscode-editor-foreground));
@@ -103,6 +103,14 @@
   .msg.assistant .body { border-left: 2px solid var(--line); padding-left: 9px; line-height: 1.5; overflow-wrap: anywhere; }
   .msg.info .body, .msg.note .body, .msg.error .body { color: var(--muted); font-size: 11px; white-space: pre-wrap; }
   .msg.error .body { color: var(--error); }
+  .approval {
+    border: 1px solid var(--error); border-radius: 5px; padding: 9px; margin: 0 0 14px;
+    background: rgba(241, 76, 76, .06);
+  }
+  .approval-title { color: var(--error); font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .approval-path { font-family: var(--vscode-editor-font-family); font-size: 10px; overflow-wrap: anywhere; }
+  .approval-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .approval-done { color: var(--muted); font-size: 10px; margin-top: 6px; }
   .msg .meta { color: var(--muted); font-size: 10px; margin-top: 4px; }
   .body p { margin: 0 0 .6em; white-space: pre-wrap; }
   .body p:last-child { margin-bottom: 0; }
@@ -135,7 +143,7 @@
   .busy-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   [hidden] { display: none !important; }
 </style>
-<style nonce="TlVGfAfiEXldA-bh-qv9xZs-">
+<style nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
   :root {
     --vscode-sideBar-background: #1f1f1f;
     --vscode-sideBar-foreground: #cccccc;
@@ -155,7 +163,7 @@
     --vscode-font-size: 13px;
     background: #1f1f1f;
   }
-</style><script nonce="TlVGfAfiEXldA-bh-qv9xZs-">
+</style><script nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
 window.acquireVsCodeApi = function () {
   return { postMessage: function () {}, getState: function () { return {}; }, setState: function () {} };
 };
@@ -251,7 +259,7 @@ window.addEventListener('load', function () {
   </div>
 </footer>
 
-<script nonce="TlVGfAfiEXldA-bh-qv9xZs-">
+<script nonce="25f5EpSazbG4OmHXzMqFJ1DQ">
 (function () {
   const vscode = acquireVsCodeApi();
   const setup = document.getElementById('setup');
@@ -570,6 +578,49 @@ window.addEventListener('load', function () {
           e.wrap.appendChild(hint);
         }
         scroll(true);
+        break;
+      }
+      case 'approval': {
+        const card = document.createElement('div');
+        card.className = 'msg approval';
+        card.dataset.id = m.id;
+        const title = document.createElement('div');
+        title.className = 'approval-title';
+        title.textContent = m.isNew ? 'Create file — approval required' : 'Edit file — approval required';
+        const p = document.createElement('div');
+        p.className = 'approval-path';
+        p.textContent = m.path || '';
+        const actions = document.createElement('div');
+        actions.className = 'approval-actions';
+        const apply = document.createElement('button');
+        apply.className = 'primary';
+        apply.textContent = 'Apply';
+        const reject = document.createElement('button');
+        reject.textContent = 'Reject';
+        const decide = (value) => {
+          apply.disabled = true;
+          reject.disabled = true;
+          post({ type: 'approvalDecision', id: m.id, apply: value });
+        };
+        apply.addEventListener('click', () => decide(true));
+        reject.addEventListener('click', () => decide(false));
+        actions.appendChild(apply);
+        actions.appendChild(reject);
+        card.appendChild(title);
+        card.appendChild(p);
+        card.appendChild(actions);
+        chat.appendChild(card);
+        scroll(true);
+        break;
+      }
+      case 'approvalDone': {
+        const card = chat.querySelector('.approval[data-id="' + m.id + '"]');
+        if (card) {
+          const done = document.createElement('div');
+          done.className = 'approval-done';
+          done.textContent = m.applied ? 'Applied.' : 'Rejected.';
+          card.appendChild(done);
+        }
         break;
       }
       case 'assistantStart': {

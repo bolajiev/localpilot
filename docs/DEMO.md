@@ -68,7 +68,19 @@ Optional second prompt that proves context works:
 Now give me a one-line summary.
 ```
 
-### 4. Explain Selected Code
+### 4. Agent file edit (optional)
+
+Open a folder in VS Code. In the LocalPilot Secondary Side Bar:
+
+1. Click **Agent** (leave **Net** off).
+2. Ask: **Create src/demo-add.ts with a small add function and a comment.**
+3. The footer shows `Agent step …` and a timer; tool activity appears in chat.
+4. When the red **Create file — approval required** card appears, review the diff and click **Apply**.
+5. Show the file in Explorer and the final summary.
+
+The agent has up to six steps. The 0.6B model can take minutes per tool step on CPU; do not click Send again while the timer is running. If no approval card appears, check that the workspace folder is open and the runtime was restarted after upgrading.
+
+### 5. Explain Selected Code
 
 Hide the sidebar if needed. In the editor, select **only one small function**. Run **LocalPilot: Explain Selected Code** (or right-click the selection).
 
@@ -80,11 +92,11 @@ Show:
 
 If you test an empty selection, show the warning and that no request starts.
 
-### 5. Stop the runtime
+### 6. Stop the runtime
 
 Run **LocalPilot: Stop Runtime**. Show that the managed QVAC process is stopped. If you used an external server, the UI will explicitly say it is leaving that server running.
 
-### 6. The offline proof
+### 7. The offline proof
 
 This is the required part. Do not skip it.
 

@@ -48,14 +48,19 @@ In the chat footer, click **Agent** to turn on the experimental local coding age
 
 - `list_files`
 - `read_file`
+- `search_text`
 - `write_file`
 - `replace_in_file`
 
 The agent can create or edit files only after it opens a diff and you click **Apply**. It cannot access paths outside the first workspace folder or run shell commands.
 
-If you ask for a file change, LocalPilot forces the write/replace tool if the first inspection step only read files, so the model cannot simply answer with code in chat. The footer shows the current agent step and elapsed time; write steps add **Waiting for approval: path**. The diff notification is what applies the change.
+If you ask for a file change, LocalPilot forces the write/replace tool if the first inspection step only read files, so the model cannot simply answer with code in chat. The footer shows the current agent step and elapsed time; write steps add **Waiting for approval: path**.
 
-![LocalPilot Agent step timer](docs/ui/thinking.png)
+An approval card appears **inside the chat** with **Apply/Reject**, and the diff opens for review. The agent waits until you decide. Up to six steps are allowed.
+
+![LocalPilot Agent progress](docs/ui/thinking.png)
+
+![LocalPilot approval card](docs/ui/approval.png)
 
 ![LocalPilot Agent mode](docs/ui/agent.png)
 

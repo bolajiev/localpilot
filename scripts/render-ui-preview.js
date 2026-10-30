@@ -199,5 +199,27 @@ fs.writeFileSync(path.join(__dirname, "../docs/ui/chat.html"), makeHtml(statusCh
 fs.writeFileSync(path.join(__dirname, "../docs/ui/download.html"), makeHtml(statusDownload));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/agent.html"), makeHtml(statusAgent));
 fs.writeFileSync(path.join(__dirname, "../docs/ui/web.html"), makeHtml(statusWeb));
+const statusApproval = `
+  window.postMessage({ type: 'status', status: {
+    state: 'running', label: 'Running', detail: 'Model ready.',
+    endpoint: 'http://127.0.0.1:11434', modelId: 'QWEN3_600M_INST_Q4',
+    modelAlias: 'localpilot-model', owned: true
+  } }, '*');
+  window.postMessage({ type: 'setupConfig', config: {
+    modelId: 'QWEN3_600M_INST_Q4', modelPath: '', onboarded: true
+  } }, '*');
+  window.postMessage({ type: 'mode', mode: 'chat' }, '*');
+  setTimeout(function () {
+    document.getElementById('agent').click();
+    setTimeout(function () {
+      window.postMessage({ type: 'user', text: 'Create src/add.ts with an add function.' }, '*');
+      window.postMessage({ type: 'busy', active: true, label: 'Agent step 2 of 6 · waiting for approval', canCancel: true }, '*');
+      window.postMessage({ type: 'note', message: 'Agent tool: write_file' }, '*');
+      window.postMessage({ type: 'approval', id: 'demo', path: 'src/add.ts', isNew: true }, '*');
+    }, 30);
+  }, 20);
+`;
+
 fs.writeFileSync(path.join(__dirname, "../docs/ui/thinking.html"), makeHtml(statusThinking));
-console.log("Wrote docs/ui/setup.html, chat.html, download.html, agent.html, web.html, and thinking.html");
+fs.writeFileSync(path.join(__dirname, "../docs/ui/approval.html"), makeHtml(statusApproval));
+console.log("Wrote docs/ui/setup.html, chat.html, download.html, agent.html, web.html, thinking.html, and approval.html");

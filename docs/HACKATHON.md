@@ -74,7 +74,8 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | Chat layout / latency feedback | PASS (Linux) | User-right/assistant-left layout; first-token timer and cancel; UI static-checked |
 | Download progress | PASS (Linux) | Fresh Qwen3 download reported 382,156,480 / 382,156,480 bytes; UI bar static-checked |
 | Large-model warning | PASS | Red SLOW flag on 1.7B and cached models over 800 MB |
-| Agent file tools | PASS (module) | list/read/write/replace unit-tested; path traversal and denied writes tested |
+| Agent file tools | PASS (module) | list/read/search/write/replace unit-tested; path traversal and denied writes tested |
+| Agent write loop | PASS (real QVAC) | Forced write created hello.txt; follow-up final summary; approval card static-checked |
 | Agent tool calling | PASS (direct QVAC test) | Forced write_file tool call returned valid arguments from QVAC; end-to-end approval flow not automated |
 | Optional internet tools | ADDED, OFF BY DEFAULT | Agent Net toggle: web_search + fetch_url; excluded from offline demo |
 | Explain Selected Code with real model | PASS (Linux) | VS Code command integration and offline script |

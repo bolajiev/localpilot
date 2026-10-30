@@ -51,6 +51,7 @@ let suppressSettingsWarning = false;
 let lastError: LocalPilotError | undefined;
 let lastDownloadProgress: { downloaded: number; total: number } | undefined;
 let extensionContext: vscode.ExtensionContext | undefined;
+const pendingApprovals = new Map<string, (apply: boolean) => void>();
 
 const ONBOARDING_KEY = "localpilot.onboarded";
 
@@ -357,8 +358,19 @@ async function reviewAgentChange(
     `LocalPilot proposal: ${relativePath}${isNew ? " (new file)" : ""}`,
     { preview: true }
   );
+  const view = panel();
+  if (view) {
+    const id = `approval-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    view.requestApproval(id, relativePath, isNew);
+    const applied = await new Promise<boolean>((resolve) => {
+      pendingApprovals.set(id, resolve);
+    });
+    pendingApprovals.delete(id);
+    view.resolveApproval(id, applied);
+    return applied;
+  }
   const choice = await vscode.window.showWarningMessage(
-    `Apply LocalPilot changes to ${relativePath}? The preview is read-only for review; edits in the preview are not applied.`,
+    `Apply LocalPilot changes to ${relativePath}? Preview edits are not applied; this applies the proposed content.`,
     "Apply",
     "Cancel"
   );
@@ -411,9 +423,9 @@ async function runAgentRequest(view: ChatPanel, text: string, webEnabled: boolea
       };
     }
 
-    for (let step = 0; step < 4; step += 1) {
-      view.setBusy(true, `Agent step ${step + 1} of 4 · waiting for local model`, true);
-      view.addNote(`Agent step ${step + 1}/4: waiting for the local model…`);
+    for (let step = 0; step < 6; step += 1) {
+      view.setBusy(true, `Agent step ${step + 1} of 6 · waiting for local model`, true);
+      view.addNote(`Agent step ${step + 1}/6: waiting for the local model…`);
       const toolChoice =
         step === 0
           ? "required"
@@ -1227,6 +1239,14 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
       case "startSetup":
         await startSetup(action);
         break;
+      case "approvalDecision": {
+        const resolve = pendingApprovals.get(action.id);
+        if (resolve) {
+          pendingApprovals.delete(action.id);
+          resolve(action.apply);
+        }
+        break;
+      }
       case "openSettings":
         openSettings();
         break;
