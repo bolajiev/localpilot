@@ -157,3 +157,14 @@ test("Plan/read-only mode removes write tools and blocks writes", async () => {
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test("shouldUseWorkspaceAgent keeps casual Build/Plan chat out of the tool loop", async () => {
+  const { shouldUseWorkspaceAgent } = await import("../agentPolicy");
+  assert.equal(shouldUseWorkspaceAgent("Explain this function", "build"), false);
+  assert.equal(shouldUseWorkspaceAgent("What does this code do?", "build"), false);
+  assert.equal(shouldUseWorkspaceAgent("Explain this function", "plan"), false);
+  assert.equal(shouldUseWorkspaceAgent("Create a file src/add.ts with an add function", "build"), true);
+  assert.equal(shouldUseWorkspaceAgent("Fix this", "build"), true);
+  assert.equal(shouldUseWorkspaceAgent("Read src/add.ts", "build"), true);
+  assert.equal(shouldUseWorkspaceAgent("Inspect the project and list the tests", "plan"), true);
+});

@@ -2,7 +2,7 @@
 
 LocalPilot is a Windows-first VS Code extension for private, CPU-first local AI coding help using [QVAC](https://qvac.tether.io). It starts a QVAC runtime, preloads one local model, provides a chat view in the VS Code Secondary Side Bar, and explains only the code you explicitly select.
 
-No cloud inference. No telemetry. No prompt or source-code logging. Chat is read-only. Plan mode reads only. Build mode can edit workspace files only after you review a diff and click **Apply**. The runtime is bound to loopback.
+No cloud inference. No telemetry. No prompt or source-code logging. Chat is read-only and streams tokens with the active editor context. Plan/Build casual questions also stream; only explicit file actions enter the tool loop. Build mode can edit workspace files only after you review a diff and click **Apply**. The runtime is bound to loopback.
 
 Source and releases: **https://github.com/bolajiev/localpilot**
 

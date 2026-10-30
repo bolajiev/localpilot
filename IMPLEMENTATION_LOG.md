@@ -183,6 +183,14 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.17.1 streaming and Build chat routing (2026-10-26)
+
+- Chat/Build/Plan casual questions now route to `requestModel` and stream tokens with active editor context.
+- Only explicit write/read/search requests enter the ReAct tool loop.
+- Added `chatWithToolsStream` and SSE `tool_calls` parsing; agent content deltas stream to the assistant bubble.
+- Verified direct QVAC Chat prompt returns a normal explanation without tool/capability meta talk.
+- 57 unit tests pass; Windows/Vulkan remain NOT TESTED.
+
 ## 0.17.0 ReAct harness and stronger prompts (2026-10-26)
 
 - Extracted the agent loop into `src/agentLoop.ts` with an explicit ReAct sequence: step/tool choice, observe result, repeat, final.
@@ -393,7 +401,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - GitHub Actions workflow: PASS (clean install, typecheck, 45 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
 - The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and setup. `0.4.0` bundled Node. `0.5.0` bundled full QVAC and the model. `0.6.0` moved model choice to a welcome page. `0.7.0` trims QVAC to the chat/LLM subset to cut download size.
-- Release assets: `localpilot-0.17.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.17.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Release assets: `localpilot-0.17.1-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.17.1.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -429,7 +437,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.17.0; Windows Node+trimmed QVAC + generic)
+- [x] GitHub Release assets published for download (0.17.1; Windows Node+trimmed QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

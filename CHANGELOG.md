@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.1 - 2026-10-26
+
+- Chat mode now streams with active editor context and a direct-answer prompt that avoids capability/tool meta commentary.
+- Build/Plan casual questions now use normal streaming chat; only explicit file actions enter the ReAct tool loop.
+- Agent replies stream content deltas through `chatWithToolsStream`; tool-selection waits show the timer/notes.
+- Added routing and streaming-tool-call tests; 57 tests pass.
+
 ## 0.17.0 - 2026-10-26
 
 - Rebuilt the agent harness around an explicit ReAct loop (`agentLoop.ts`): inspect/observe, call one tool, observe the result, repeat, then summarize.

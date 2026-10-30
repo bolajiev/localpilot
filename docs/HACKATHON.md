@@ -45,7 +45,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 
 | Item | Value |
 | --- | --- |
-| QVAC package | `@qvac/cli@0.17.0` (bundles `@qvac/sdk@0.22.0`) |
+| QVAC package | `@qvac/cli@0.17.1` (bundles `@qvac/sdk@0.22.0`) |
 | Runtime mode | `qvac serve --openai --no-default`, loopback `127.0.0.1:11434` |
 | Model | `QWEN3_600M_INST_Q4` (`Qwen3-0.6B-Q4_0.gguf`, 382,156,480 bytes) |
 | Model source | `unsloth/Qwen3-0.6B-GGUF` commit `50968a4468ef4233ed78cd7c3de230dd1d61a56b` |
@@ -63,12 +63,12 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 
 | Check | Status | Evidence |
 | --- | --- | --- |
-| QVAC CLI installed and doctor run | PASS (Linux) | CLI 0.17.0; `qvac doctor` exit 0, CPU fallback warning |
+| QVAC CLI installed and doctor run | PASS (Linux) | CLI 0.17.1; `qvac doctor` exit 0, CPU fallback warning |
 | Real model loaded and answered | PASS (Linux) | Streaming chat, 5-6 tokens returned |
 | Existing local GGUF loaded and answered | PASS (Linux) | Explicit `src` + `llamacpp-completion`; extension-host integration |
 | Secondary Side Bar (right) | PASS (Linux) | WebviewView resolved and chat/explain commands passed in Extension Host |
 | Automatic QVAC install | PASS (module) | Real 3.3 GB npm install into local storage + managed-runtime resolution; interactive prompt not automated |
-| Windows all-in-one package contents | BUILT | `win32-x64` VSIX contains Node/npm and a trimmed QVAC 0.17.0 LLM runtime; model not bundled; Windows execution NOT TESTED |
+| Windows all-in-one package contents | BUILT | `win32-x64` VSIX contains Node/npm and a trimmed QVAC 0.17.1 LLM runtime; model not bundled; Windows execution NOT TESTED |
 | Welcome/model setup | PASS (Linux) | Setup path started a catalog model; real chat returned `"LocalPilot integration OK."`; webview UI is static-checked |
 | Cached-model discovery | PASS (Linux) | `~/.qvac/models` scan and `Already on this PC` list; unit-covered |
 | Chat layout / latency feedback | PASS (Linux) | User-right/assistant-left layout; first-token timer and cancel; UI static-checked |

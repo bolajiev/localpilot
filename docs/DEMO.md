@@ -14,7 +14,7 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
    - Run one chat prompt and one **Explain Selected Code**.
    - Confirm fresh output and note timings.
    - Run **LocalPilot: Stop Runtime**.
-7. Close other memory-heavy apps so the 16 GB machine has room for the worker.
+7. Close other memory/CPU-heavy apps so the 16 GB machine has room for the worker. Do not run other agents, Docker builds, or dev servers during the demo.
 8. Prepare a small code file with a 10-30 line function selected. Do not select the whole file.
 9. Clear the sidebar chat if you do not want previous prompts in the recording.
 10. If you plan to demo an existing local GGUF, confirm **Choose Model or Local GGUF** loads it and that it answers before recording.
@@ -68,19 +68,24 @@ Optional second prompt that proves context works:
 Now give me a one-line summary.
 ```
 
-### 4. Agent file edit (optional)
+### 4. Build-mode conversational question (streaming)
 
-Open a folder in VS Code. In the LocalPilot Secondary Side Bar:
+Open a folder and select a small function in the editor. In the LocalPilot Secondary Side Bar:
 
 1. Choose **Build** in the mode selector (leave **Net** off).
-2. Ask: **Create src/demo-add.ts with a small add function and a comment.**
-3. The footer shows `Agent step …` and a timer; tool activity appears in chat.
-4. When the red **Create file — approval required** card appears, review the diff and click **Apply**.
-5. Show the file in Explorer and the final summary.
+2. Ask: **Explain the selected function and how I would change its return type.**
+3. This is a conversational request, so Build uses normal streaming chat with the selected code. Tokens appear incrementally; no tools or approval card are needed.
+4. Point out that Build can chat without being forced into a file write.
 
-The agent has up to six steps. The 0.6B model can take minutes per tool step on CPU; do not click Send again while the timer is running. If no approval card appears, check that the workspace folder is open and the runtime was restarted after upgrading.
+Do not use this step to ask for a file change; that enters the ReAct tool loop.
 
-### 5. Explain Selected Code
+### 5. Agent file edit (optional; pre-record if time is short)
+
+Ask: **Create src/demo-add.ts with a small add function and a comment.** The footer shows `Agent step …` and a timer; tool activity appears in chat. When the red **Create file — approval required** card appears, review the diff and click **Apply**, then show the file in Explorer.
+
+The 0.6B model can take minutes per tool step on CPU. Do not click Send again while the timer is running. If the live tool step is too slow, show it as a pre-recorded clip and say so; do not claim it was live.
+
+### 6. Explain Selected Code
 
 Hide the sidebar if needed. In the editor, select **only one small function**. Run **LocalPilot: Explain Selected Code** (or right-click the selection).
 
@@ -92,11 +97,11 @@ Show:
 
 If you test an empty selection, show the warning and that no request starts.
 
-### 6. Stop the runtime
+### 7. Stop the runtime
 
 Run **LocalPilot: Stop Runtime**. Show that the managed QVAC process is stopped. If you used an external server, the UI will explicitly say it is leaving that server running.
 
-### 7. The offline proof
+### 8. The offline proof
 
 This is the required part. Do not skip it.
 

@@ -334,3 +334,43 @@ test("chatWithTools returns tool calls and forwards the tool schema", async () =
     }
   );
 });
+
+test("chatWithToolsStream streams content and assembles fragmented tool calls", async () => {
+  await withServer(
+    (_request, response) => {
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      response.write(
+        'data: {"choices":[{"delta":{"content":"I "},"finish_reason":null}]}\n\n'
+      );
+      response.write(
+        'data: {"choices":[{"delta":{"content":"will read."},"finish_reason":null}]}\n\n'
+      );
+      response.write(
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read_file","arguments":"{\\"path\\":\\"src/"}}]},"finish_reason":null}]}\n\n'
+      );
+      response.write(
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"a.ts\\"}"}}]},"finish_reason":null}]}\n\n'
+      );
+      response.write(
+        'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n'
+      );
+      response.end("data: [DONE]\n\n");
+    },
+    async ({ url }) => {
+      const client = new QvacClient(url, "localpilot-model");
+      const deltas: string[] = [];
+      const result = await client.chatWithToolsStream(
+        [{ role: "user", content: "read src/a.ts" }],
+        [],
+        { maxTokens: 32, temperature: 0, enableReasoning: false },
+        (text) => deltas.push(text)
+      );
+      assert.equal(deltas.join(""), "I will read.");
+      assert.equal(result.content, "I will read.");
+      assert.equal(result.toolCalls.length, 1);
+      assert.equal(result.toolCalls[0].id, "call_1");
+      assert.equal(result.toolCalls[0].function.name, "read_file");
+      assert.equal(result.toolCalls[0].function.arguments, '{"path":"src/a.ts"}');
+    }
+  );
+});

@@ -4,9 +4,20 @@ export interface ChatUsage {
   total_tokens?: number;
 }
 
+export interface ToolCallDelta {
+  index?: number;
+  id?: string;
+  type?: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
+}
+
 export interface ChatDelta {
   content?: string;
   reasoning?: string;
+  toolCalls?: ToolCallDelta[];
   finishReason?: string | null;
   usage?: ChatUsage;
   error?: {
@@ -104,7 +115,7 @@ export function parseChatDelta(payload: string): ChatDelta {
     error?: { code?: unknown; message?: unknown };
     usage?: ChatUsage;
     choices?: Array<{
-      delta?: { content?: unknown; reasoning_content?: unknown };
+      delta?: { content?: unknown; reasoning_content?: unknown; tool_calls?: unknown };
       finish_reason?: unknown;
     }>;
   };
@@ -125,10 +136,35 @@ export function parseChatDelta(payload: string): ChatDelta {
     typeof delta?.reasoning_content === "string" ? delta.reasoning_content : undefined;
   const finishReason =
     typeof choice?.finish_reason === "string" ? choice.finish_reason : choice?.finish_reason === null ? null : undefined;
+  const toolCalls: ToolCallDelta[] = [];
+  if (Array.isArray(delta?.tool_calls)) {
+    for (const value of delta.tool_calls) {
+      if (!value || typeof value !== "object") {
+        continue;
+      }
+      const call = value as {
+        index?: unknown;
+        id?: unknown;
+        type?: unknown;
+        function?: { name?: unknown; arguments?: unknown };
+      };
+      toolCalls.push({
+        index: typeof call.index === "number" ? call.index : undefined,
+        id: typeof call.id === "string" ? call.id : undefined,
+        type: typeof call.type === "string" ? call.type : undefined,
+        function: {
+          name: typeof call.function?.name === "string" ? call.function.name : undefined,
+          arguments:
+            typeof call.function?.arguments === "string" ? call.function.arguments : undefined
+        }
+      });
+    }
+  }
 
   return {
     content,
     reasoning,
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     finishReason,
     usage: record.usage
   };

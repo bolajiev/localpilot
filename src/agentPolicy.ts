@@ -16,3 +16,22 @@ export function detectWriteIntent(text: string): WriteIntent {
     writeTool: CREATE.test(text) ? "write_file" : "replace_in_file"
   };
 }
+
+
+const WORKSPACE_READ = /\b(read|open|inspect|list|show|search|find|look|explore|scan|review|analyz|navigat|locate|grep|browse|walk)\b/i;
+const WORKSPACE_SUBJECT = /\b(file|folder|directory|workspace|project|codebase|repo|repository|tree|source|module|test|selection|snippet|code)\b/i;
+const FILE_PATH = /(?:^|[\s`"'(])(?:[\w.-]+[\\/])*[\w.-]+\.(?:ts|tsx|js|jsx|json|md|py|css|html|go|rs|java|c|cpp|h|hpp|cs|php|rb|swift|kt)(?=[\s`"')]|$)/i;
+const EDIT_THIS = /\b(create|write|save|add|edit|modify|update|fix|refactor|change|implement|remove|delete|rename|replace)\b[^.!?\n]{0,40}\b(this|it|selection|snippet|file|code)\b/i;
+
+export function shouldUseWorkspaceAgent(text: string, mode: "plan" | "build"): boolean {
+  if (mode === "build" && detectWriteIntent(text).wantsWrite) {
+    return true;
+  }
+  if (FILE_PATH.test(text)) {
+    return true;
+  }
+  if (mode === "build" && EDIT_THIS.test(text)) {
+    return true;
+  }
+  return WORKSPACE_READ.test(text) && WORKSPACE_SUBJECT.test(text);
+}

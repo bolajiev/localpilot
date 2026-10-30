@@ -11,7 +11,7 @@ import {
 } from "./chatView";
 import { AgentMessage } from "./agentTypes";
 import { runAgentLoop } from "./agentLoop";
-import { detectWriteIntent } from "./agentPolicy";
+import { detectWriteIntent, shouldUseWorkspaceAgent } from "./agentPolicy";
 import { AgentTools } from "./agentTools";
 import { LocalPilotError, toFriendlyError } from "./errors";
 import { ChatResult, QvacClient } from "./qvacClient";
@@ -21,9 +21,11 @@ import {
   AGENT_SYSTEM_PROMPT,
   AGENT_WEB_PROMPT,
   assertChatInput,
+  BUILD_CHAT_PROMPT,
   buildExplainMessages,
   CHAT_SYSTEM_PROMPT,
   ChatMessage,
+  PLAN_CHAT_PROMPT,
   trimConversation
 } from "./prompts";
 import { checkNodeRuntime, installManagedQvac } from "./runtimeInstaller";
@@ -461,6 +463,8 @@ async function runAgentRequest(
   view.appendUser(text);
   view.setBusy(true, "Agent is working…", true);
   const started = Date.now();
+  let assistantId: number | undefined;
+  let streamedText = "";
 
   try {
     const tools = new AgentTools(root, reviewAgentChange, {
@@ -511,6 +515,13 @@ async function runAgentRequest(
         view.setBusy(true, label, true);
         view.addNote(`Agent step ${step}/${maxSteps}: waiting for the local model…`);
       },
+      onTextDelta: (text) => {
+        if (!assistantId) {
+          assistantId = view.beginAssistant();
+        }
+        streamedText += text;
+        view.appendAssistantDelta(assistantId, text);
+      },
       onToolStart: (name, rawArguments) => {
         view.addNote(`Agent tool: ${name}`);
         if (name === "write_file" || name === "replace_in_file") {
@@ -532,15 +543,28 @@ async function runAgentRequest(
     log(
       `agent completed model=${settings.modelAlias} steps=${result.steps} wroteFile=${result.wroteFile} elapsedMs=${Date.now() - started}`
     );
-    const assistantId = view.beginAssistant();
-    view.appendAssistantDelta(assistantId, result.content);
-    view.endAssistant(assistantId, { elapsedMs: Date.now() - started });
+    const finalText = result.content.trim();
+    if (finalText && !streamedText.includes(finalText)) {
+      if (!assistantId) {
+        assistantId = view.beginAssistant();
+      }
+      view.appendAssistantDelta(assistantId, result.content);
+    }
+    if (assistantId) {
+      view.endAssistant(assistantId, {
+        elapsedMs: Date.now() - started,
+        note: streamedText ? undefined : "completed"
+      });
+    }
     appendConversation(
       { role: "user", content: text },
       { role: "assistant", content: result.content }
     );
   } catch (error) {
     const friendly = toFriendlyError(error);
+    if (assistantId) {
+      view.endAssistant(assistantId, { note: friendly.code === "cancelled" ? "stopped" : "failed" });
+    }
     if (friendly.code === "cancelled") {
       view.addNote("Agent stopped. Any unapproved changes were discarded.");
       log(`agent cancelled elapsedMs=${Date.now() - started}`);
@@ -587,18 +611,24 @@ async function handleSend(
       return;
     }
 
-    if (mode !== "chat") {
+    if (mode !== "chat" && shouldUseWorkspaceAgent(text, mode)) {
       busy = false;
       await runAgentRequest(view, text, mode, web);
       return;
     }
 
     const settings = readSettings();
+    const modePrompt =
+      mode === "build" ? BUILD_CHAT_PROMPT : mode === "plan" ? PLAN_CHAT_PROMPT : CHAT_SYSTEM_PROMPT;
+    const context = activeEditorContext();
     let messages: ChatMessage[];
     try {
       messages = trimConversation(
         [
-          { role: "system", content: CHAT_SYSTEM_PROMPT },
+          {
+            role: "system",
+            content: `${modePrompt}${context ? `\n\n${context}` : ""}`
+          },
           ...conversation,
           { role: "user", content: text }
         ],

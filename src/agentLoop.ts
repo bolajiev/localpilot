@@ -16,6 +16,19 @@ export interface AgentClient {
     signal?: AbortSignal,
     timeoutMs?: number
   ): Promise<AgentResult>;
+  chatWithToolsStream?(
+    messages: AgentMessage[],
+    tools: ToolDefinition[],
+    params: {
+      maxTokens: number;
+      temperature: number;
+      enableReasoning: boolean;
+      toolChoice?: ToolChoice;
+    },
+    onDelta: (text: string) => void,
+    signal?: AbortSignal,
+    timeoutMs?: number
+  ): Promise<AgentResult>;
 }
 
 export interface AgentLoopOptions {
@@ -31,6 +44,7 @@ export interface AgentLoopOptions {
   timeoutMs: number;
   signal?: AbortSignal;
   onStep?: (step: number, maxSteps: number) => void;
+  onTextDelta?: (text: string) => void;
   onToolStart?: (name: string, rawArguments: string) => void;
   onToolResult?: (summary: string) => void;
 }
@@ -79,18 +93,29 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   for (let step = 0; step < maxSteps; step += 1) {
     steps = step + 1;
     options.onStep?.(step + 1, maxSteps);
-    const result = await options.client.chatWithTools(
-      messages,
-      options.tools.definitions(),
-      {
-        maxTokens: options.maxTokens,
-        temperature: options.temperature,
-        enableReasoning: false,
-        toolChoice: toolChoiceFor(step, options, wroteFile, writeDenied)
-      },
-      options.signal,
-      options.timeoutMs
-    );
+    const params = {
+      maxTokens: options.maxTokens,
+      temperature: options.temperature,
+      enableReasoning: false,
+      toolChoice: toolChoiceFor(step, options, wroteFile, writeDenied)
+    };
+    const result =
+      options.onTextDelta && options.client.chatWithToolsStream
+        ? await options.client.chatWithToolsStream(
+            messages,
+            options.tools.definitions(),
+            params,
+            options.onTextDelta,
+            options.signal,
+            options.timeoutMs
+          )
+        : await options.client.chatWithTools(
+            messages,
+            options.tools.definitions(),
+            params,
+            options.signal,
+            options.timeoutMs
+          );
 
     if (result.toolCalls.length === 0) {
       finalContent = result.content.trim();
