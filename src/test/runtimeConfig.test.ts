@@ -161,3 +161,31 @@ test("findCatalogModelCache reports partial and complete cached models", async (
     await fs.rm(home, { recursive: true, force: true });
   }
 });
+
+test("recoverLegacyBundledModels copies old extension models without overwriting", async () => {
+  const { recoverLegacyBundledModels } = await import("../modelCache");
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "localpilot-recover-home-"));
+  const extensions = await fs.mkdtemp(path.join(os.tmpdir(), "localpilot-recover-ext-"));
+  try {
+    const oldModels = path.join(extensions, "localpilot.localpilot-0.5.0-win32-x64", "resources", "models");
+    await fs.mkdir(oldModels, { recursive: true });
+    await fs.writeFile(path.join(oldModels, "Qwen3-0.6B-Q4_0.gguf"), "legacy-model");
+    const cache = path.join(home, ".qvac", "models");
+    await fs.mkdir(cache, { recursive: true });
+    await fs.writeFile(path.join(cache, "existing.gguf"), "keep");
+
+    const recovered = await recoverLegacyBundledModels(extensions, home);
+    assert.equal(recovered.length, 1);
+    assert.equal(
+      await fs.readFile(path.join(cache, "Qwen3-0.6B-Q4_0.gguf"), "utf8"),
+      "legacy-model"
+    );
+    assert.equal(await fs.readFile(path.join(cache, "existing.gguf"), "utf8"), "keep");
+
+    const again = await recoverLegacyBundledModels(extensions, home);
+    assert.equal(again.length, 0);
+  } finally {
+    await fs.rm(home, { recursive: true, force: true });
+    await fs.rm(extensions, { recursive: true, force: true });
+  }
+});

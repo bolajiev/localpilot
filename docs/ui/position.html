@@ -1,18 +1,39 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-  html,body{margin:0;height:100%;background:#1f1f1f;}
-  .shell{display:flex;height:100vh;background:#1f1f1f;}
-  .activity{width:48px;flex:0 0 48px;background:#181818;border-right:1px solid #2b2b2b;display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:6px;}
-  .activity .item{width:48px;height:40px;display:flex;align-items:center;justify-content:center;color:#9d9d9d;position:relative;}
-  .activity .item.active{color:#ffffff;}
-  .activity .item.active:before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:2px;background:#007fd4;border-radius:2px;}
-  .activity svg{width:22px;height:22px;}
-  .frame{flex:1;border:0;width:100%;height:100vh;background:#1f1f1f;}
+  html,body{margin:0;height:100%;background:#1f1f1f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#ccc;font-size:12px;}
+  .shell{display:flex;height:100vh;}
+  .activity{width:48px;flex:0 0 48px;background:#181818;border-right:1px solid #2b2b2b;display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:8px;color:#9d9d9d;}
+  .activity .i{width:42px;height:36px;display:flex;align-items:center;justify-content:center;}
+  .activity .i.active{color:#fff;background:#2a2d2e;border-left:2px solid #007fd4;}
+  .files{width:220px;flex:0 0 220px;background:#1f1f1f;border-right:1px solid #2b2b2b;padding:10px 8px;}
+  .files h4{font-size:10px;letter-spacing:.8px;color:#9d9d9d;margin:0 8px 10px;font-weight:600;}
+  .row{padding:3px 8px;color:#c9c9c9;white-space:nowrap;}
+  .row.muted{color:#777;}
+  .row.folder{color:#d7d7d7;}
+  .editor{flex:1;background:#1e1e1e;border-right:1px solid #2b2b2b;display:flex;align-items:center;justify-content:center;color:#555;}
+  .editor .empty{border:1px dashed #333;padding:22px 30px;border-radius:6px;}
+  .right{width:390px;flex:0 0 390px;background:#1f1f1f;border-left:1px solid #333;}
+  iframe{width:390px;height:100vh;border:0;display:block;background:#1f1f1f;}
+  svg{width:20px;height:20px;}
 </style></head><body>
 <div class="shell">
-  <div class="activity" aria-label="Activity Bar">
-    <div class="item active" title="LocalPilot"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 2.25c.83 0 1.5.67 1.5 1.5v1.5h2.75A3.75 3.75 0 0 1 20 9v8.25A3.75 3.75 0 0 1 16.25 21h-8.5A3.75 3.75 0 0 1 4 17.25V9a3.75 3.75 0 0 1 3.75-3.75h2.75v-1.5c0-.83.67-1.5 1.5-1.5Zm0 4.5h-4.25A2.25 2.25 0 0 0 5.5 9v8.25a2.25 2.25 0 0 0 2.25 2.25h8.5a2.25 2.25 0 0 0 2.25-2.25V9a2.25 2.25 0 0 0-2.25-2.25H12ZM9 11a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm-5.25 4.5h6.5v1.5h-6.5v-1.5Z"/></svg></div>
+  <div class="activity">
+    <div class="i" title="Explorer">▤</div>
+    <div class="i" title="Search">⌕</div>
+    <div class="i" title="Source Control">⑂</div>
+    <div class="i" title="Run">▷</div>
   </div>
-  <iframe class="frame" src="setup.html"></iframe>
+  <div class="files">
+    <h4>EXPLORER</h4>
+    <div class="row folder">▾ LOCALPILOT</div>
+    <div class="row">▾ src</div>
+    <div class="row muted">　extension.ts</div>
+    <div class="row muted">　chatView.ts</div>
+    <div class="row muted">　agentTools.ts</div>
+    <div class="row">　package.json</div>
+    <div class="row">　README.md</div>
+  </div>
+  <div class="editor"><div class="empty">File editor</div></div>
+  <div class="right"><iframe src="setup.html"></iframe></div>
 </div>
 </body></html>

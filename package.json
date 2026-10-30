@@ -2,11 +2,11 @@
   "name": "localpilot",
   "displayName": "LocalPilot",
   "description": "Private, CPU-first local AI coding assistant for VS Code powered by QVAC.",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "publisher": "localpilot",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.95.0",
+    "vscode": "^1.108.0",
     "node": ">=20"
   },
   "categories": [
@@ -76,6 +76,11 @@
       {
         "command": "localpilot.openModelsFolder",
         "title": "Open Model Cache Folder",
+        "category": "LocalPilot"
+      },
+      {
+        "command": "localpilot.recoverOldModels",
+        "title": "Recover Old Bundled Models",
         "category": "LocalPilot"
       }
     ],
@@ -203,7 +208,7 @@
       }
     },
     "viewsContainers": {
-      "activitybar": [
+      "secondarySidebar": [
         {
           "id": "localpilot",
           "title": "LocalPilot",
@@ -234,7 +239,7 @@
     "smoke:explain": "node scripts/explain-smoke.js",
     "check:webview": "node scripts/check-webview.js",
     "test:integration": "npm run compile && node out/test/integration/runTest.js",
-    "package:win32": "vsce package --no-dependencies --ignoreFile .vscodeignore.win32 --target win32-x64 -o localpilot-0.12.0-win32-x64.vsix"
+    "package:win32": "vsce package --no-dependencies --ignoreFile .vscodeignore.win32 --target win32-x64 -o localpilot-0.13.0-win32-x64.vsix"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

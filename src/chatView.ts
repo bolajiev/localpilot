@@ -14,6 +14,7 @@ export type ChatAction =
   | { type: "showChat" }
   | { type: "browseModel" }
   | { type: "openModelsFolder" }
+  | { type: "recoverModels" }
   | { type: "startSetup"; kind: "catalog"; modelId: string }
   | { type: "startSetup"; kind: "local"; modelPath: string }
   | { type: "selectModel" }
@@ -242,6 +243,7 @@ export class ChatPanel implements vscode.Disposable {
       case "showChat":
       case "browseModel":
       case "openModelsFolder":
+      case "recoverModels":
       case "selectModel":
       case "openSettings":
         return { type: record.type };
@@ -447,7 +449,11 @@ function chatHtml(): string {
       <button id="back" class="link" hidden>Back to chat</button>
     </div>
     <div id="cache-dir" class="cache-dir"></div>
-    <div class="cache-actions"><button id="open-cache" class="link" hidden>Open models folder</button></div>
+    <div class="cache-actions">
+      <button id="open-cache" class="link" hidden>Open models folder</button>
+      <button id="recover-models" class="link">Recover old models</button>
+    </div>
+    <p class="cache-dir">LocalPilot never deletes model files in this folder.</p>
     <p class="setup-note">No cloud. No telemetry. Prompts stay on this machine. Internet is needed only for the model download. CPU inference can take several seconds before the first token.</p>
   </div>
 </main>
@@ -854,6 +860,7 @@ function chatHtml(): string {
   setupStart.addEventListener('click', beginSetup);
   back.addEventListener('click', () => post({ type: 'showChat' }));
   openCache.addEventListener('click', () => post({ type: 'openModelsFolder' }));
+  document.getElementById('recover-models').addEventListener('click', () => post({ type: 'recoverModels' }));
   document.getElementById('model').addEventListener('click', () => post({ type: 'showSetup' }));
   document.getElementById('settings').addEventListener('click', () => post({ type: 'openSettings' }));
   power.addEventListener('click', () => {

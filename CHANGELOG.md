@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0 - 2026-10-26
+
+- Moved the LocalPilot view container to the **Secondary Side Bar on the right** (VS Code 1.108+), keeping File Explorer on the left.
+- Added **Recover Old Bundled Models** to copy models from older LocalPilot extension folders into the QVAC cache.
+- Added a setup-page guarantee that LocalPilot never deletes cached model files.
+- Documented the 0.5 bundled-model removal on upgrade and how to recover it.
+
 ## 0.12.0 - 2026-10-26
 
 - Added optional Agent internet tools: `web_search` (DuckDuckGo) and `fetch_url`.

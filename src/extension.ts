@@ -32,7 +32,11 @@ import {
   formatCheckReport
 } from "./runtimeManager";
 import { assertLocalModelFile } from "./runtimeConfig";
-import { modelCacheDirectory, readCachedModels } from "./modelCache";
+import {
+  modelCacheDirectory,
+  readCachedModels,
+  recoverLegacyBundledModels
+} from "./modelCache";
 import { readSettings } from "./settings";
 
 let outputChannel: vscode.OutputChannel | undefined;
@@ -685,6 +689,34 @@ async function refreshSetupCache(surface: ChatPanel): Promise<void> {
   }
 }
 
+async function recoverOldModels(): Promise<void> {
+  const extensionsDirectory = extensionContext
+    ? path.dirname(extensionContext.extensionUri.fsPath)
+    : undefined;
+  if (!extensionsDirectory) {
+    void vscode.window.showWarningMessage("LocalPilot is not active.");
+    return;
+  }
+  const recovered = await recoverLegacyBundledModels(extensionsDirectory);
+  const surface = panel();
+  if (surface) {
+    await refreshSetupCache(surface);
+  }
+  if (recovered.length > 0) {
+    const choice = await vscode.window.showInformationMessage(
+      `Recovered ${recovered.length} model file(s) from an older LocalPilot extension into %USERPROFILE%\.qvac\models.`,
+      "Open Models Folder"
+    );
+    if (choice === "Open Models Folder") {
+      await openModelsFolder();
+    }
+  } else {
+    void vscode.window.showInformationMessage(
+      "No old LocalPilot bundled models were found. Downloaded models stay in %USERPROFILE%\.qvac\models."
+    );
+  }
+}
+
 async function openModelsFolder(): Promise<void> {
   const directory = modelCacheDirectory();
   await fs.mkdir(directory, { recursive: true });
@@ -1066,6 +1098,11 @@ async function showStatusMenu(): Promise<void> {
       command: "localpilot.setup"
     },
     {
+      label: "$(archive) Recover Old Bundled Models",
+      description: "Recover models bundled inside pre-0.6 LocalPilot extension folders",
+      command: "localpilot.recoverOldModels"
+    },
+    {
       label: "$(pulse) Check Runtime",
       description: "Inspect the QVAC CLI, doctor report, server, and model cache",
       command: "localpilot.checkRuntime"
@@ -1151,6 +1188,9 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
       case "openModelsFolder":
         await openModelsFolder();
         break;
+      case "recoverModels":
+        await recoverOldModels();
+        break;
       case "startSetup":
         await startSetup(action);
         break;
@@ -1207,6 +1247,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
   register("localpilot.stopRuntime", () => stopRuntimeInteractive(false));
   register("localpilot.showLogs", () => outputChannel?.show(true));
   register("localpilot.openModelsFolder", () => openModelsFolder());
+  register("localpilot.recoverOldModels", () => recoverOldModels());
   register("localpilot.statusMenu", () => showStatusMenu());
   register("localpilot.openSettingsInternal", () => openSettings());
 }

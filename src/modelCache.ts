@@ -100,3 +100,61 @@ export async function findCatalogModelCache(
     cached: Boolean(best && best.sizeBytes >= info.sizeBytes * 0.995)
   };
 }
+
+export interface RecoveredModel {
+  source: string;
+  target: string;
+}
+
+export async function recoverLegacyBundledModels(
+  extensionsDirectory: string,
+  home = os.homedir()
+): Promise<RecoveredModel[]> {
+  const cacheDirectory = modelCacheDirectory(home);
+  await fs.mkdir(cacheDirectory, { recursive: true });
+  let entries: Dirent[];
+  try {
+    entries = await fs.readdir(extensionsDirectory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const recovered: RecoveredModel[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.toLowerCase().startsWith("localpilot")) {
+      continue;
+    }
+    const modelsDirectory = path.join(
+      extensionsDirectory,
+      entry.name,
+      "resources",
+      "models"
+    );
+    let modelFiles: Dirent[];
+    try {
+      modelFiles = await fs.readdir(modelsDirectory, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const modelFile of modelFiles) {
+      if (!modelFile.isFile() || !modelFile.name.toLowerCase().endsWith(".gguf")) {
+        continue;
+      }
+      const source = path.join(modelsDirectory, modelFile.name);
+      const target = path.join(cacheDirectory, modelFile.name);
+      try {
+        await fs.access(target);
+        continue;
+      } catch {
+        // Not present; copy it.
+      }
+      try {
+        await fs.copyFile(source, target);
+        recovered.push({ source, target });
+      } catch {
+        // Keep scanning other legacy folders.
+      }
+    }
+  }
+  return recovered;
+}

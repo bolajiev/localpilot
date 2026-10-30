@@ -1,6 +1,6 @@
 # LocalPilot
 
-LocalPilot is a Windows-first VS Code extension for private, CPU-first local AI coding help using [QVAC](https://qvac.tether.io). It starts a QVAC runtime, preloads one local model, provides a chat view in the VS Code Activity Bar sidebar, and explains only the code you explicitly select.
+LocalPilot is a Windows-first VS Code extension for private, CPU-first local AI coding help using [QVAC](https://qvac.tether.io). It starts a QVAC runtime, preloads one local model, provides a chat view in the VS Code Secondary Side Bar, and explains only the code you explicitly select.
 
 No cloud inference. No telemetry. No prompt or source-code logging. Chat is read-only. Agent mode can read workspace files and edit them only after you review a diff and click **Apply**. The runtime is bound to loopback.
 
@@ -11,7 +11,7 @@ Source and releases: **https://github.com/bolajiev/localpilot**
 The complete extension was built, packaged, and exercised against a **real QVAC model** in this repository's development environment:
 
 - Real QVAC CLI `0.16.0` with bundled SDK `0.22.0`, Node.js `24.21.0`, VS Code `1.143.1` test host, Linux x64, CPU backend (no Vulkan ICD).
-- Activity Bar sidebar, managed start, runtime check, streaming chat, Explain Selected Code, managed stop, and loading an existing local GGUF passed in a VS Code Extension Host integration test.
+- Secondary Side Bar, managed start, runtime check, streaming chat, Explain Selected Code, managed stop, and loading an existing local GGUF passed in a VS Code Extension Host integration test.
 - The private QVAC installer was verified with a real 3.3 GB install and managed-runtime resolution; its interactive confirmation prompt is not automated.
 - The Windows `win32-x64` VSIX was built with Node.js 24.21.0, npm, and a trimmed chat-only QVAC runtime bundled. The model is not bundled; the welcome/setup flow downloads it or loads a local GGUF. Windows execution itself is still NOT TESTED.
 - Chat and code explanation passed again with external networking disabled in an isolated Linux network namespace.
@@ -21,7 +21,9 @@ Measured results and the full acceptance matrix are in [`IMPLEMENTATION_LOG.md`]
 
 ## UI and placement
 
-LocalPilot contributes its own **Activity Bar** icon (the robot). The view opens in VS Code's **Primary Side Bar**, to the right of the Activity Bar on the default left layout. It does not float over the editor or open an editor tab. VS Code's **Workbench > Side Bar Location** setting controls whether the Side Bar is on the left or right; the extension follows it.
+LocalPilot contributes its container to VS Code's **Secondary Side Bar on the right**. File Explorer stays in the Primary Side Bar on the left, so you can keep files visible while chatting. This requires VS Code **1.108 or newer**.
+
+The extension does not float over the editor or take an editor tab. If the Secondary Side Bar is hidden, run **LocalPilot: Chat with Local Model** or use **View: Toggle Secondary Side Bar**.
 
 ![LocalPilot position](docs/ui/position.png)
 
@@ -38,7 +40,7 @@ The view is intentionally compact:
 
 ![LocalPilot chat](docs/ui/chat.png)
 
-If the icon is not visible, right-click the Activity Bar and enable **LocalPilot**, or reload VS Code after installing.
+If the view is not visible, run **LocalPilot: Chat with Local Model**; it focuses the Secondary Side Bar. Reload VS Code after installing.
 
 ### Agent mode
 
@@ -76,12 +78,12 @@ Tool calling is enabled in the generated QVAC model config. The 0.6B model is sm
 | `LocalPilot: Check Runtime` | Locates the QVAC CLI and Node.js, runs `qvac doctor`, checks the loopback server/model alias, and reports the Qwen GGUF cache. |
 | `LocalPilot: Start / Load Local Model` | Writes a loopback-only QVAC config, starts `qvac serve --openai --no-default`, waits for the model to preload, and reports errors. The first catalog-model run downloads the model. If QVAC is missing, this offers the automatic install. |
 | `LocalPilot: Choose Model or Local GGUF` | Opens the same setup page (Qwen3 0.6B, Qwen3 1.7B, or an existing local `.gguf`). |
-| `LocalPilot: Chat with Local Model` | Focuses the LocalPilot Activity Bar sidebar and its streaming chat. Prompts and responses stay in memory and on this machine. |
+| `LocalPilot: Chat with Local Model` | Focuses the LocalPilot Secondary Side Bar on the right and its streaming chat. Prompts and responses stay in memory and on this machine. |
 | `LocalPilot: Explain Selected Code` | Sends only the current editor selection. With no selection it shows an actionable warning and sends nothing. Oversized selections are rejected. |
 | `LocalPilot: Stop Runtime` | Unloads the model and stops the process tree **only if LocalPilot started it**. An external QVAC server is never killed; only its model may be unloaded after confirmation. |
 | `LocalPilot: Show Diagnostics Log` | Shows status metadata and sanitized QVAC runtime lines. Prompt/code fields are filtered out. |
 
-After installation, LocalPilot appears as a robot icon in the Activity Bar. Click it for the chat/setup sidebar. The status-bar item also opens all actions. The editor context menu includes **Explain Selected Code** when text is selected.
+After installation, LocalPilot appears in the **Secondary Side Bar (right)**. File Explorer remains on the left. The status-bar item also opens all actions. The editor context menu includes **Explain Selected Code** when text is selected.
 
 ## Requirements
 
@@ -91,7 +93,7 @@ After installation, LocalPilot appears as a robot icon in the Activity Bar. Clic
 - **Vulkan 1.4 or newer**, including CPU-only inference. Update the AMD/Intel/NVIDIA GPU driver. Verify with the Vulkan SDK's `vulkaninfo --summary`. A machine with no Vulkan 1.4-capable driver does not satisfy QVAC's published Windows requirement.
 - **Windows all-in-one VSIX:** includes Node.js `24.21.0`, npm, and a **chat-only QVAC 0.16.0 runtime** (QVAC LLM plugin). The model is **not** preloaded; the welcome page lets the user download one or load their own.
 - Generic/source builds require Node.js `22.21+` (22.x) or `24.9+` and also download/set up QVAC.
-- VS Code `1.95+`.
+- VS Code `1.108+` for Secondary Side Bar view containers.
 - 16 GB RAM recommended. The default model file is 382 MB, but the QVAC worker used about **1.5 GB RSS** during inference; Windows, VS Code, and the KV cache need memory too.
 - About 1.2 GB free disk for the Windows package (about 257 MB download, ~740 MB installed) plus the chosen model (382 MB for the default).
 - **Vulkan 1.4+ from the GPU driver** is the only remaining system prerequisite. The extension cannot install graphics drivers.
@@ -158,7 +160,7 @@ For development, open the folder in VS Code and press **F5** to launch the Exten
 
 ### 4. First run
 
-Click the LocalPilot robot icon in the Activity Bar. On first open, the welcome page appears automatically. You can also run **LocalPilot: Set Up / Choose Model**.
+Open LocalPilot in the Secondary Side Bar, or run **LocalPilot: Chat with Local Model**. On first open, the welcome page appears automatically. You can also run **LocalPilot: Set Up / Choose Model**.
 
 1. The sidebar opens on a minimal welcome page. Choose **Qwen3 0.6B** (382 MB download), **Qwen3 1.7B** (1.01 GB), or **Use a local GGUF**.
 2. Click **Download and start** or **Use this model**. LocalPilot writes a loopback-only config, starts the included QVAC runtime, and downloads/loads only the model you picked.
@@ -257,6 +259,12 @@ Requirements and caveats for local GGUF files:
 - You can also set `localpilot.modelPath` manually. Clear it (or run **Reset to the default Qwen3 0.6B model**) to return to catalog downloads.
 
 The model list is curated, not a live remote marketplace. A full live catalog browser can use QVAC's `/v1/models/catalog` endpoint later, but that endpoint requires a running server and adds complexity beyond this MVP.
+
+## Model cache and upgrades
+
+LocalPilot **never deletes files in `%USERPROFILE%\.qvac\models`**. Unloading a model releases memory only; it does not remove the GGUF. The welcome page lists cached models under **Already on this PC**, shows the folder, and has **Recover old models**.
+
+The 0.5 Windows VSIX bundled a Qwen model inside the extension folder. Installing 0.6+ replaced that folder, so the bundled copy disappeared; downloaded models in the QVAC cache were not affected. Run **LocalPilot: Recover Old Bundled Models** to copy any model still present in an older LocalPilot extension folder into the QVAC cache. If the old extension folder is gone, re-download the model.
 
 ## Default model
 

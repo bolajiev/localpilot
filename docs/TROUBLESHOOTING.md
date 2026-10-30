@@ -21,7 +21,9 @@ Do not assume that the absence of an NVIDIA GPU means Vulkan is unavailable. QVA
 
 ## "QVAC CLI was not found" / automatic setup
 
-LocalPilot no longer requires a manual global QVAC install. The Windows VSIX includes Node.js/npm and the full QVAC runtime. Click the LocalPilot Activity Bar icon; the welcome page lets the user download a catalog model or choose a local GGUF. On generic/source builds, LocalPilot installs QVAC privately under VS Code global storage (`...\User\globalStorage\localpilot.localpilot\qvac-runtime`) if needed.
+LocalPilot no longer requires a manual global QVAC install. The Windows VSIX includes Node.js/npm and the QVAC chat runtime. Open LocalPilot in the **Secondary Side Bar (right)** or run **LocalPilot: Chat with Local Model**; the welcome page lets the user download a catalog model or choose a local GGUF. On generic/source builds, LocalPilot installs QVAC privately under VS Code global storage (`...\User\globalStorage\localpilot.localpilot\qvac-runtime`) if needed.
+
+VS Code 1.108+ is required for extension-contributed Secondary Side Bar views.
 
 The automatic install:
 
@@ -147,6 +149,15 @@ The file must be a llama.cpp-compatible chat GGUF with a usable chat template. Q
 Local files bypass QVAC catalog checksum verification. Verify the source, integrity, license, and memory requirements yourself. If the local model fails but the default works, the file is the likely cause.
 
 If you downloaded the model through QVAC and it is already under `%USERPROFILE%\.qvac\models`, it appears under **Already on this PC** on the welcome page. Select it and continue; QVAC reuses the cache. The setup page also has **Open models folder**.
+
+## A model disappeared after updating LocalPilot
+
+LocalPilot does not delete files from `%USERPROFILE%\.qvac\models`. The 0.5 Windows VSIX bundled a model **inside the extension folder**; installing 0.6+ replaced that folder, so the bundled copy was lost. Downloaded cache models are separate and should remain.
+
+- Open **LocalPilot: Choose Model or Local GGUF** and check **Already on this PC**.
+- Click **Open models folder** and inspect `%USERPROFILE%\.qvac\models`.
+- Run **LocalPilot: Recover Old Bundled Models** to copy a model from an older LocalPilot extension folder if it still exists.
+- Otherwise re-download the model.
 
 ## Model fit / out of memory
 

@@ -183,6 +183,15 @@ These numbers are for the shared 6-vCPU Linux host with QVAC CPU backend. They a
 - QVAC worker RSS during inference: ~1.5 GB; CLI process ~140 MB. Approximate combined QVAC footprint: ~1.65 GB.
 - Context: 4096; output cap in automated runs: 8-16 tokens (production default 384); reasoning disabled; temperature 0 for tests.
 
+## 0.13.0 right-side placement and model-preservation audit (2026-10-26)
+
+- Moved the view container from `viewsContainers.activitybar` to `viewsContainers.secondarySidebar`, placing LocalPilot on the right and leaving File Explorer on the left. Minimum VS Code is now 1.108.
+- Updated the placement preview and docs; the Secondary Side Bar is focused via `localpilot.chatView.focus`.
+- Audited production code for model-cache deletion: no production `rm`/`unlink`/`DeleteFile` path targets `~/.qvac/models`; `DELETE /v1/models/:id` only unloads memory. The likely lost model was the **0.5 bundled model** inside the replaced extension folder.
+- Added **Recover Old Bundled Models**, which copies `.gguf` files from older `localpilot*/resources/models` folders into `~/.qvac/models` without overwriting existing files.
+- Added a setup-page message that LocalPilot never deletes cached model files.
+- Windows execution remains NOT TESTED.
+
 ## 0.12.0 optional Agent internet tools (2026-10-26)
 
 - Added `web_search` (DuckDuckGo HTML) and `fetch_url` to Agent mode, behind a **Net** toggle that is off by default.
@@ -347,7 +356,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - GitHub Actions workflow: PASS (clean install, typecheck, 45 unit tests, webview check, VSIX package, artifact upload).
 - Release download: https://github.com/bolajiev/localpilot/releases/latest
 - The `0.2.0` release introduced local GGUF support. The `0.3.0` release added the Activity Bar sidebar and setup. `0.4.0` bundled Node. `0.5.0` bundled full QVAC and the model. `0.6.0` moved model choice to a welcome page. `0.7.0` trims QVAC to the chat/LLM subset to cut download size.
-- Release assets: `localpilot-0.12.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.12.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
+- Release assets: `localpilot-0.13.0-win32-x64.vsix` (Windows: Node + trimmed QVAC; model chosen at setup) and `localpilot-0.13.0.vsix` (generic/source, requires system Node). Checksums are in the final delivery report.
 - Repository includes the VS Code extension source, tests, docs, and build workflow. The VSIX and bundled Node binaries are release artifacts, not committed source.
 
 ## Remaining blockers and next tasks
@@ -383,7 +392,7 @@ The 0.1.0 build history above remains accurate for that version. The 0.2.0 build
 - [x] Generic VSIX install verified; Windows package contents verified
 - [x] GitHub repository pushed and public
 - [x] GitHub Actions build/test/package workflow passed
-- [x] GitHub Release assets published for download (0.12.0; Windows Node+trimmed QVAC + generic)
+- [x] GitHub Release assets published for download (0.13.0; Windows Node+trimmed QVAC + generic)
 - [x] README, troubleshooting, demo, and hackathon notes updated
 - [x] Webview CSP and script syntax check included in `npm run check`
 - [ ] Demo video recorded

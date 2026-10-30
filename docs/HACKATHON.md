@@ -54,7 +54,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | LocalPilot version | `0.12.0` |
 | Windows package | `localpilot-0.12.0-win32-x64.vsix` (~257 MB; Node.js + chat-only QVAC runtime; model chosen/downloaded on welcome page) |
 | Model loading | Curated catalog download or user-supplied local `.gguf` path |
-| UX | Activity Bar sidebar; one-click QVAC + model setup |
+| UX | Secondary Side Bar on the right; one-click QVAC + model setup |
 | Extension host | VS Code 1.95+ |
 | Tested runtime | Node 24.21.0, VS Code 1.143.1 test host, Linux x64 CPU fallback |
 | Windows status | **Not tested in this environment**; Vulkan 1.4 gate must be verified on the target PC |
@@ -66,7 +66,7 @@ Cloud AI APIs for the core feature make an entry ineligible for prizes. LocalPil
 | QVAC CLI installed and doctor run | PASS (Linux) | CLI 0.16.0; `qvac doctor` exit 0, CPU fallback warning |
 | Real model loaded and answered | PASS (Linux) | Streaming chat, 5-6 tokens returned |
 | Existing local GGUF loaded and answered | PASS (Linux) | Explicit `src` + `llamacpp-completion`; extension-host integration |
-| Activity Bar sidebar | PASS (Linux) | WebviewView resolved and chat/explain commands passed in Extension Host |
+| Secondary Side Bar (right) | PASS (Linux) | WebviewView resolved and chat/explain commands passed in Extension Host |
 | Automatic QVAC install | PASS (module) | Real 3.3 GB npm install into local storage + managed-runtime resolution; interactive prompt not automated |
 | Windows all-in-one package contents | BUILT | `win32-x64` VSIX contains Node/npm and a trimmed QVAC 0.16.0 LLM runtime; model not bundled; Windows execution NOT TESTED |
 | Welcome/model setup | PASS (Linux) | Setup path started a catalog model; real chat returned `"LocalPilot integration OK."`; webview UI is static-checked |
@@ -92,7 +92,7 @@ Do not upgrade "PASS (Linux)" to "tested on Windows" without running the Windows
 
 ## Suggested Build description
 
-> LocalPilot is a privacy-first VS Code extension that adds a local AI assistant to the Activity Bar sidebar. It chats with a local QVAC model and explains selected code without sending prompts or source to the cloud. The Windows VSIX bundles Node.js and a chat-focused QVAC runtime; a minimal welcome page lets the user download Qwen3-0.6B/1.7B or choose a local GGUF file. It rejects non-loopback endpoints and has no cloud fallback or telemetry. The MVP was validated with real QVAC inference and an isolated-network offline test on Linux x64 CPU. Windows verification is documented as pending because the target Vulkan 1.4 machine was not available to the build environment.
+> LocalPilot is a privacy-first VS Code extension that adds a local AI assistant to the Secondary Side Bar on the right. It chats with a local QVAC model and explains selected code without sending prompts or source to the cloud. The Windows VSIX bundles Node.js and a chat-focused QVAC runtime; a minimal welcome page lets the user download Qwen3-0.6B/1.7B or choose a local GGUF file. It rejects non-loopback endpoints and has no cloud fallback or telemetry. The MVP was validated with real QVAC inference and an isolated-network offline test on Linux x64 CPU. Windows verification is documented as pending because the target Vulkan 1.4 machine was not available to the build environment.
 
 ## Submission checklist
 
