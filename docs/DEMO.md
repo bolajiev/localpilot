@@ -8,7 +8,7 @@ This is a real-inference demo. Do not substitute mocked responses. The submissio
 2. The Windows `win32-x64` VSIX includes Node.js and QVAC; no separate Node/QVAC install is needed.
 3. LocalPilot VSIX is installed; open the LocalPilot view in the Secondary Side Bar (right), or run **LocalPilot: Chat with Local Model**.
 4. On first open, use the welcome page to download a model (Qwen3 0.6B is 382 MB) or select a local GGUF.
-5. Leave **Net off** for the offline demo. Agent file tools still work; web search/fetch must not be used in the offline demonstration.
+5. There is no Net button. Agent web tools are available by default; do not ask the agent to search the web during the offline demonstration.
 6. Model cache is primed:
    - Run **LocalPilot: Start / Load Local Model** with internet.
    - Run one chat prompt and one **Explain Selected Code**.
@@ -72,7 +72,7 @@ Now give me a one-line summary.
 
 Open a folder and select a small function in the editor. In the LocalPilot Secondary Side Bar:
 
-1. Choose **Build** in the mode selector (leave **Net** off).
+1. Choose **Build** in the mode selector.
 2. Ask: **Explain the selected function.**
 3. This is a conversational request, so Build uses normal streaming chat with the selected code. Tokens appear incrementally; no tools or approval card are needed.
 4. Point out that Build can chat without being forced into a file write.

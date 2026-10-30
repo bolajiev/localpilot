@@ -5,9 +5,9 @@ export interface WriteIntent {
   writeTool: WriteToolName;
 }
 
-const ACTION = /\b(create|write|save|add|edit|modify|update|fix|refactor|change|implement)\b/i;
-const SUBJECT = /\b(file|code|function|component|test|class|module|readme|config|typescript|javascript|python|bug|script|style|app|api|route|hook|source)\b|[./\\][A-Za-z0-9_.-]+/i;
-const CREATE = /\b(create|write|save|implement)\b|\badd\s+(?:a\s+)?(?:new\s+)?(?:file|function|test|component|code|module)\b/i;
+const ACTION = /\b(create|write|save|add|edit|modify|update|fix|refactor|change|implement|build|make)\b/i;
+const SUBJECT = /\b(file|code|function|component|test|class|module|readme|config|typescript|javascript|python|bug|script|style|app|application|website|webpage|site|page|api|route|hook|source)\b|[./\\][A-Za-z0-9_.-]+/i;
+const CREATE = /\b(create|write|save|implement|build|make)\b|\badd\s+(?:a\s+)?(?:new\s+)?(?:file|function|test|component|code|module)\b/i;
 
 export function detectWriteIntent(text: string): WriteIntent {
   const wantsWrite = ACTION.test(text) && SUBJECT.test(text);

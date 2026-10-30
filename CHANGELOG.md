@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.3 - 2026-10-26
+
+- Removed the Net button. Agent web search/fetch are enabled by default for explicit Plan/Build tasks.
+- Strengthened LocalPilot's identity prompts: it is a workspace coding agent, not a general website/app builder.
+- Broad requests like "Can you build me a website?" now enter Build tools instead of a chat promise.
+- 57 tests pass.
+
 ## 0.17.2 - 2026-10-26
 
 - Fixed Build mode classifying explanation questions containing words like “change” or “fix” as file-write requests.

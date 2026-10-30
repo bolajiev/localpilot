@@ -74,18 +74,16 @@ An approval card appears **inside the chat** with **Apply/Reject**, and the diff
 
 ![LocalPilot Build mode](docs/ui/agent.png)
 
-### Optional internet tools
+### Agent internet tools
 
-In Plan or Build mode, click **Net** to enable two additional tools:
+Plan/Build agents have two internet actions available by default for explicit workspace tasks:
 
 - `web_search` (DuckDuckGo)
 - `fetch_url` (public http/https pages only)
 
-**Net is off by default.** When it is off, web tools are not sent to the model at all, so the normal Agent and Chat workflows remain fully local/offline. When Net is on, the query or URL leaves this machine; private/local/loopback addresses and credentials are blocked, and fetched content is truncated and treated as untrusted.
+There is no Net button. Queries/URLs leave this machine only when an agent task needs them; private/local/loopback addresses and credentials are blocked, and fetched content is truncated and treated as untrusted. Chat mode has no internet actions.
 
-![LocalPilot Agent with internet](docs/ui/web.png)
-
-For the hackathon offline demo, leave **Net** off. That proves the core still works locally; the internet feature is explicitly excluded from the offline demonstration.
+For the offline demo, disconnect the network and use Chat/Build conversational questions; do not ask the agent to search the web.
 
 Tool calling is enabled in the generated QVAC model config. The 0.6B model is small and tool use on CPU can be slow; Plan/Build are experimental. Chat remains the default mode.
 
@@ -234,7 +232,7 @@ The repository includes `scripts/offline-test.sh` for Linux CI. It starts QVAC i
 - Model output is displayed as text only. LocalPilot does not write it to files or execute it.
 - Chat prompts and selections stay in extension memory. QVAC itself writes model files to `~/.qvac/models` and KV-cache data to `~/.qvac/kv-cache`.
 - Agent tools read only the workspace folder. Proposed diffs are written to a temporary folder for review; file writes happen only after **Apply**.
-- The optional web tools run only after the user enables **Net**. They have no cloud inference; they fetch public web content and are not used by default.
+- Agent web actions are available by default for explicit Plan/Build tasks. They have no cloud inference; they fetch public web content and are not used by Chat.
 - The loopback server has no API key by default. Other processes running as your user could call it. Stop the runtime when not needed.
 
 ## Model choices and loading a model you already have
@@ -418,9 +416,9 @@ Recommended track: **Offline AI apps**.
 - Windows execution is unverified in this repository. The Vulkan 1.4 gate is the highest-risk Windows blocker.
 - CPU latency is high in the shared CI environment; measure the target PC.
 - One active model and alias. There is no multi-model routing, RAG, or embeddings.
-- Plan/Build modes are bounded to workspace file tools plus optional Net web search/fetch. They have no shell/command execution and no autonomous writes; every file change needs diff approval. They use the first workspace folder in multi-root workspaces.
+- Plan/Build modes are bounded to workspace file tools plus web search/fetch. They have no shell/command execution and no autonomous writes; every file change needs diff approval. They use the first workspace folder in multi-root workspaces.
 - The 0.6B model's tool-call reliability varies; Plan/Build are experimental.
-- Internet tools are optional and off by default. When enabled, Agent web search/fetch sends queries/URLs to external services; this is excluded from the offline demo.
+- Agent web search/fetch may send queries/URLs to external services for explicit tasks; this is excluded from the offline demo. There is no Net toggle.
 - The Windows VSIX bundles a chat-only subset of QVAC to keep the download small (about 257 MB). Image/speech/translation QVAC addons are not included; install full QVAC separately if you need those (LocalPilot only uses chat).
 - The model is not bundled; the welcome page downloads/loads the user's choice.
 - Vulkan 1.4 remains a system driver prerequisite; the extension cannot install GPU drivers.

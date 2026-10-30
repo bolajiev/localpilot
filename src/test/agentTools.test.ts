@@ -170,6 +170,7 @@ test("shouldUseWorkspaceAgent keeps casual Build/Plan chat out of the tool loop"
   assert.equal(shouldUseWorkspaceAgent("Explain this function", "plan"), false);
   assert.equal(shouldUseWorkspaceAgent("Create a file src/add.ts with an add function", "build"), true);
   assert.equal(shouldUseWorkspaceAgent("Fix this", "build"), true);
+  assert.equal(shouldUseWorkspaceAgent("Can you build me a website?", "build"), true);
   assert.equal(shouldUseWorkspaceAgent("Read src/add.ts", "build"), true);
   assert.equal(shouldUseWorkspaceAgent("Inspect the project and list the tests", "plan"), true);
 });

@@ -584,7 +584,7 @@ async function runAgentRequest(
 async function handleSend(
   rawText: string,
   mode: "chat" | "plan" | "build" = "chat",
-  web = false
+  web = true
 ): Promise<void> {
   const view = await showChatSurface(false);
   if (busy) {
@@ -1280,7 +1280,7 @@ async function handlePanelAction(action: ChatAction): Promise<void> {
   try {
     switch (action.type) {
       case "send":
-        await handleSend(action.text, action.mode, action.web === true);
+        await handleSend(action.text, action.mode, action.web !== false);
         break;
       case "cancel":
         cancelRequest();

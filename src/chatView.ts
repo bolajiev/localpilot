@@ -500,7 +500,6 @@ function chatHtml(): string {
       <option value="plan">Plan</option>
       <option value="build">Build</option>
     </select>
-    <button id="net" class="net" title="Internet tools: web search and URL fetch. Off by default; sends queries off this machine.">Net</button>
     <span id="model-label"></span>
     <span class="grow"></span>
     <span id="busy-label" class="busy-label"></span>
@@ -518,7 +517,6 @@ function chatHtml(): string {
   const cancel = document.getElementById('cancel');
   const power = document.getElementById('power');
   const modeSelect = document.getElementById('mode');
-  const netButton = document.getElementById('net');
   const status = document.getElementById('status');
   const statusLabel = document.getElementById('status-label');
   const busyLabel = document.getElementById('busy-label');
@@ -545,7 +543,6 @@ function chatHtml(): string {
   let onboarded = false;
   let localPath = '';
   let chatMode = 'chat';
-  let netMode = false;
   let cachedModels = [];
   let cacheDirectory = '';
 
@@ -935,7 +932,7 @@ function chatHtml(): string {
     if (!text.trim() || busy) return;
     input.value = '';
     input.style.height = 'auto';
-    post({ type: 'send', text, mode: chatMode, web: netMode });
+    post({ type: 'send', text, mode: chatMode, web: true });
   }
   function beginSetup() {
     setupError.hidden = true;
@@ -966,29 +963,16 @@ function chatHtml(): string {
     if (runtimeState === 'running' || runtimeState === 'external') post({ type: 'stopRuntime' });
     else post({ type: 'startRuntime' });
   });
-  function updateModeUi() {
-    netButton.disabled = chatMode === 'chat';
-    if (chatMode === 'chat') netMode = false;
-    netButton.classList.toggle('active', netMode);
-  }
+  function updateModeUi() {}
   modeSelect.addEventListener('change', () => {
     chatMode = modeSelect.value;
-    if (chatMode === 'chat') netMode = false;
     updateModeUi();
     const messages = {
       chat: 'Chat mode: no file tools. Use Plan or Build for workspace context.',
       plan: 'Plan mode: read-only workspace tools. LocalPilot can read/search your code and propose a plan, but cannot edit files.',
-      build: 'Build mode: workspace read/write tools. Every file change requires the in-chat Apply approval. Internet is off unless you enable Net.'
+      build: 'Build mode: workspace read/write tools. Every file change requires the in-chat Apply approval. Internet tools are enabled for explicit workspace tasks.'
     };
     addMessage('note', '', messages[chatMode] || messages.chat);
-    input.focus();
-  });
-  netButton.addEventListener('click', () => {
-    netMode = !netMode;
-    updateModeUi();
-    addMessage('note', '', netMode
-      ? 'Internet ON. Plan/Build requests may send search queries/URLs off this machine. Web content is untrusted. Turn Net off for the offline demo.'
-      : 'Internet OFF. Workspace tools are local-only.');
     input.focus();
   });
   send.addEventListener('click', submit);
